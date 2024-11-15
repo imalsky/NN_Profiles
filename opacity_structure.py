@@ -61,7 +61,7 @@ def set_stellar_spectrum(datapath, filename):
     return stellar_spectrum
 
 
-def calculate_opacity_structure(profiles, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh=True, stellar_spectrum=None):
+def calculate_opacity_structure(profiles, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh=True, stellar_spectrum=None, tstar=None):
     """
     Calculate opacity structure for atmospheric profiles.
 
@@ -92,8 +92,8 @@ def calculate_opacity_structure(profiles, k_db, cia_db, grav, rcp, albedo_surf, 
                 rcp=rcp,
                 albedo_surf=albedo_surf,
                 composition=profile['composition'],
-                Tstar=None,
-                stellar_spectrum=stellar_spectrum,
+                Tstar=tstar,
+                #stellar_spectrum=stellar_spectrum,
                 k_database=k_db,
                 cia_database=cia_db,
                 rayleigh=rayleigh
@@ -142,11 +142,11 @@ def calculate_heating_rates_and_fluxes(atm, wl_range=[0.1, 50.0], rayleigh=False
             wl_range=wl_range,
             rayleigh=rayleigh
         )
-        print(f"TOA flux computed for wavelength range {wl_range} with Rayleigh={rayleigh}.")
+        #print(f"TOA flux computed for wavelength range {wl_range} with Rayleigh={rayleigh}.")
 
         # Compute heating rates and net fluxes
         heat_rates, net_fluxes = atm.heating_rate()
-        print("Heating rates and net fluxes calculated.")
+        #print("Heating rates and net fluxes calculated.")
         
         return heat_rates, net_fluxes, TOA_flux
 

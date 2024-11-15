@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # Step 2: Generate PT profiles
     print("\n[2] Generating Pressure-Temperature Profiles...")
     generator = ProfileGenerator(
-        N=5,  # Number of profiles to generate
+        N=10,  # Number of profiles to generate
         P=P,
         config_file='Inputs/parameters.json'
     )
@@ -81,7 +81,8 @@ if __name__ == '__main__':
         albedo_surf=albedo_surf,
         Rp=Rp,
         rayleigh=rayleigh,
-        stellar_spectrum=stellar_spectrum
+        stellar_spectrum=stellar_spectrum,
+        tstar=config['model_params'].get('Tstar', None)
     )
     print(f"✔ {len(atm_objects)} profile(s) processed successfully.")
 
@@ -98,10 +99,10 @@ if __name__ == '__main__':
             data_to_save = {
                 "pressure": list(10**np.array(atm.data_dict['pressure'])),
                 "temperature": list(atm.data_dict['temperature']),
-                "Tstar": None,  # Placeholder, replace with actual Tstar if available
+                "Tstar":config['model_params'].get('Tstar', None),
                 "net_fluxes": list(net_fluxes)
             }
-            save_data(data_to_save, folder='Data', base_filename=f'prof_{i + 1}')
+            save_data(data_to_save, folder='Data', base_filename=f'prof')
 
     # Step 7: Visualize PT profiles
     print("\n[7] Visualizing a Subset of PT Profiles...")
