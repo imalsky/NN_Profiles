@@ -1,0 +1,8 @@
+# Exclude everything in the Data folder
+Data/
+
+# Exclude everything in the Inputs folder
+Inputs/
+
+# Exclude everything in the Figures folder
+Figures/
