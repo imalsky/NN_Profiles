@@ -1,7 +1,7 @@
 import os
 import json
-import numpy as np
 import exo_k as xk
+
 
 def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     """
@@ -24,7 +24,7 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     # Set up paths in exo_k
     xk.Settings().set_mks(True)
     xk.Settings().set_search_path(os.path.join(datapath, 'xsec'), path_type='xtable')
-    xk.Settings().set_search_path(os.path.join(datapath, 'corrk'), path_type='ktable')
+    xk.Settings().set_search_path(os.path.join(datapath, 'corrk_big'), path_type='ktable')
     xk.Settings().set_search_path(os.path.join(datapath, 'cia'), path_type='cia')
     
     # Initialize databases
@@ -35,27 +35,51 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     print("Opacity databases initialized.")
     return k_db, cia_db
 
-def calculate_opacity_structure(profiles, k_db, cia_db, grav=9.81, rcp=0.28, albedo_surf=0.0, Rp=6371e3):
+
+def set_stellar_spectrum(datapath, filename):
     """
-    Calculate opacity structure for atmospheric profiles and integrate results into the atm object.
+    Set the stellar spectrum.
 
     Parameters:
-    - profiles (list): List of atmospheric profiles with keys 'logplay', 'tlay', and 'composition'.
+    - datapath (str): Path to the data directory.
+    - filename (str): Filename of the stellar spectrum file.
+
+    Returns:
+    - stellar_spectrum (xk.Spectrum): Stellar spectrum object.
+    """
+    spectrum_path = os.path.join(datapath, filename)
+    stellar_spectrum = xk.Spectrum(
+        filename=spectrum_path,
+        spectral_radiance=True,
+        input_spectral_unit='nm'
+    )
+    print(f"Stellar spectrum loaded from {spectrum_path}.")
+    return stellar_spectrum
+
+
+def calculate_opacity_structure(profiles, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh=True, stellar_spectrum=None):
+    """
+    Calculate opacity structure for atmospheric profiles.
+
+    Parameters:
+    - profiles (list): List of atmospheric profiles.
     - k_db (xk.Kdatabase): K-table database.
     - cia_db (xk.CIAdatabase): CIA database.
     - grav (float): Gravitational acceleration in m/s^2.
     - rcp (float): R/cp value (dimensionless).
     - albedo_surf (float): Surface albedo.
     - Rp (float): Planet radius in meters.
+    - rayleigh (bool): Whether to include Rayleigh scattering.
+    - stellar_spectrum (xk.Spectrum): Stellar spectrum object.
 
     Returns:
-    - atm_objects (list): List of xk.Atm objects with calculated data stored in a `data_dict` attribute.
+    - atm_objects (list): List of xk.Atm objects with a `data_dict` attribute.
     """
     atm_objects = []
 
     for i, profile in enumerate(profiles):
         try:
-            # Initialize atmosphere
+            # Initialize atmosphere with all parameters, including stellar spectrum
             atm = xk.Atm(
                 logplay=profile['logplay'],
                 tlay=profile['tlay'],
@@ -64,23 +88,23 @@ def calculate_opacity_structure(profiles, k_db, cia_db, grav=9.81, rcp=0.28, alb
                 rcp=rcp,
                 albedo_surf=albedo_surf,
                 composition=profile['composition'],
+                Tstar=None,
+                stellar_spectrum=stellar_spectrum,
                 k_database=k_db,
                 cia_database=cia_db,
-                rayleigh=True
+                rayleigh=rayleigh
             )
             
             # Compute opacity and emission properties
             atm.setup_emission_caculation()
 
-            # Organize data into a dictionary
+            # Organize results into a data dictionary
             data_dict = {
-                'pressure': 10**atm.logplay,  # Convert log pressure back to linear scale
-                'temperature': atm.tlay,
-                'tau': atm.tau,  # Multidimensional array (optical depth)
-                'dtau': atm.dtau,  # Differential optical depth
-                'weights': atm.weights if atm.weights is not None else None
+                'pressure': profile['logplay'],  # Using input profile's data
+                'temperature': profile['tlay'],  # Using input profile's data
+                # Add other fields as necessary from available attributes
             }
-            
+
             # Attach the data dictionary to the atm object
             atm.data_dict = data_dict
 
@@ -93,3 +117,38 @@ def calculate_opacity_structure(profiles, k_db, cia_db, grav=9.81, rcp=0.28, alb
             continue
 
     return atm_objects
+
+
+
+
+
+def calculate_heating_rates_and_fluxes(atm, wl_range=[0.1, 50.0]):
+    """
+    Calculate heating rates and fluxes for an atmospheric model.
+
+    Parameters:
+    - atm (xk.Atm): Atmospheric model object.
+    - wl_range (list): Wavelength range for flux calculation (default: [0.1, 50.0] microns).
+
+    Returns:
+    - heat_rates (ndarray): Heating rates array.
+    - net_fluxes (ndarray): Net flux array.
+    - TOA_flux (ndarray): Top-of-atmosphere flux array.
+    """
+    try:
+        # Compute TOA flux
+        TOA_flux = atm.emission_spectrum_2stream(
+            wl_range=wl_range,
+            rayleigh=True
+        )
+        print(f"TOA flux computed for wavelength range {wl_range}.")
+
+        # Compute heating rates and net fluxes
+        heat_rates, net_fluxes = atm.heating_rate()
+        print("Heating rates and net fluxes calculated.")
+        
+        return heat_rates, net_fluxes, TOA_flux
+
+    except Exception as e:
+        print(f"Error calculating heating rates and fluxes: {e}")
+        return None, None, None

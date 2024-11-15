@@ -1,8 +1,13 @@
 import os
 import json
 import numpy as np
+from opacity_structure import (
+    initialize_opacity_databases,
+    set_stellar_spectrum,
+    calculate_opacity_structure,
+    calculate_heating_rates_and_fluxes
+)
 from profile_generator import ProfileGenerator
-from opacity_structure import initialize_opacity_databases, calculate_opacity_structure
 from visualize import plot_profiles
 
 # Ensure required directories exist
@@ -10,17 +15,22 @@ os.makedirs('Inputs', exist_ok=True)
 os.makedirs('Data', exist_ok=True)
 os.makedirs('Figures', exist_ok=True)
 
-# Load pressure range and configuration from parameters.json
+# Load configuration
 with open('Inputs/parameters.json', 'r') as f:
     config = json.load(f)
-    pressure_min = config['pressure_range']['min']
-    pressure_max = config['pressure_range']['max']
-    pressure_points = config['pressure_range']['points']
 
-# Generate the pressure array based on the loaded range
-P = np.logspace(np.log10(pressure_min), np.log10(pressure_max), num=pressure_points)
+# Extract the datapath from the configuration
+datapath = config['datapath']
 
-# Function to sample a constant or distribution
+# Generate the pressure array
+pressure_range = config['pressure_range']
+P = np.logspace(
+    np.log10(pressure_range['min']),
+    np.log10(pressure_range['max']),
+    num=pressure_range['points']
+)
+
+# Function to sample constants or distributions
 def sample_constant_or_distribution(param_config):
     if param_config['dist'] == 'fixed':
         return param_config['value']
@@ -37,46 +47,71 @@ rcp = sample_constant_or_distribution(config['planet_params']['rcp'])
 albedo_surf = sample_constant_or_distribution(config['planet_params']['albedo_surf'])
 Rp = sample_constant_or_distribution(config['planet_params']['Rp'])
 
-
-
-
-
-# Main code
+# Main function
 if __name__ == '__main__':
-    N = 1  # Number of profiles to generate
+    print("\n" + "="*70)
+    print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
+    print("="*70)
     
     # Step 1: Generate PT profiles
-    print("Generating PT profiles...")
-    generator = ProfileGenerator(N, P, config_file='Inputs/parameters.json')
+    print("\n[1] Generating Pressure-Temperature Profiles...")
+    generator = ProfileGenerator(
+        N=1,  # Number of profiles to generate
+        P=P,
+        config_file='Inputs/parameters.json'
+    )
     generator.generate_profiles()
-    profiles = generator.get_profiles()  # Get profiles in a format compatible with xk.Atm
-    print(f"Generated {len(profiles)} profiles.")
+    profiles = generator.get_profiles()
+    print(f"✔ {len(profiles)} PT profile(s) generated successfully.")
     
     # Step 2: Initialize opacity databases
-    print("Initializing opacity databases...")
+    print("\n[2] Initializing Opacity Databases...")
     k_db, cia_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
+    print("✔ Opacity databases initialized.")
     
+    # Step 3: Set the stellar spectrum
+    print("\n[3] Loading Stellar Spectrum...")
+    stellar_spectrum_file = config['model_params'].get('stellar_spectrum_file', 'stellar_spectra/default_spectrum.dat')
+    stellar_spectrum = set_stellar_spectrum(datapath=datapath, filename=stellar_spectrum_file)
+    print(f"✔ Stellar spectrum loaded successfully.")
 
-
-    # Step 3: Calculate opacity structure
-    print("Calculating opacity structure for each profile...")
+    # Step 4: Calculate opacity structure
+    print("\n[4] Calculating Opacity Structure for Atmospheric Profiles...")
+    rayleigh = config['model_params'].get('rayleigh', True)  # Explicit rayleigh parameter
     atm_objects = calculate_opacity_structure(
-        profiles=profiles,  # List of atmospheric profiles
+        profiles=profiles,
         k_db=k_db,
         cia_db=cia_db,
         grav=grav,
         rcp=rcp,
         albedo_surf=albedo_surf,
-        Rp=Rp
+        Rp=Rp,
+        rayleigh=rayleigh,
+        stellar_spectrum=stellar_spectrum  # Pass the loaded stellar spectrum here
     )
-    print(f"Processed {len(atm_objects)} profiles successfully.")
+    print(f"✔ {len(atm_objects)} profile(s) processed successfully.")
 
-    # Example: Access data for the first profile
+    # Example: Access and display first profile's data
     if atm_objects:
-        first_profile_data = atm_objects[0].data_dict
-        print("First profile data:", first_profile_data)
+        print("\n[INFO] Example: Data from the First Atmospheric Profile:")
+        first_atm = atm_objects[0]
+        print(f"  - Pressure (Pa): {10**first_atm.data_dict['pressure'][:5]} ...")
+        print(f"  - Temperature (K): {first_atm.data_dict['temperature'][:5]} ...")
     
-    # Step 4: Visualize a subset of profiles
-    print("Visualizing a subset of PT profiles...")
+        # Step 5: Calculate heating rates and fluxes
+        print("\n[5] Calculating Heating Rates and Fluxes for the First Profile...")
+        wl_range = config['model_params'].get('wavelength_range', [0.1, 50.0])  # Explicit wavelength range
+        heat_rates, net_fluxes, TOA_flux = calculate_heating_rates_and_fluxes(first_atm, wl_range=wl_range)
+        if heat_rates is not None:
+            print(f"✔ Heating rates and fluxes calculated.")
+            print(f"  - Sample Heating Rates: {heat_rates[:3]} ...")
+            print(f"  - Sample Net Fluxes: {net_fluxes[:3]} ...")
+    
+    # Step 6: Visualize PT profiles
+    print("\n[6] Visualizing a Subset of PT Profiles...")
     plot_profiles(filename='Data/profiles.h5', num_plots=10)
-    print("Visualization saved to Figures/")
+    print("✔ Visualization saved to Figures/pt_profiles.png")
+    
+    print("\n" + "="*70)
+    print(f"{'PIPELINE COMPLETED SUCCESSFULLY':^70}")
+    print("="*70)
