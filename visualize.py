@@ -40,8 +40,6 @@ def plot_profiles(filename='Data/profiles.h5', num_plots=10):
     plt.title('Sample Temperature-Pressure Profiles')
     
     # Save the plot
-    plot_filename = 'Figures/sample_profiles.png'
+    plot_filename = 'Figures/profiles.png'
     plt.savefig(plot_filename, dpi=300)
     plt.close()
-    
-    print(f"Plot saved to {plot_filename}")
