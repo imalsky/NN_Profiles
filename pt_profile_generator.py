@@ -1,7 +1,5 @@
 import numpy as np
-import h5py
 import json
-import os
 
 class ProfileGenerator:
     def __init__(self, N, P, config_file='Inputs/parameters.json'):
@@ -14,8 +12,6 @@ class ProfileGenerator:
         self.N = N              # Number of profiles to generate
         self.P = P              # Pressure array in bar
         self.load_parameters(config_file)  # Load priors and composition from JSON config file
-        self.temperatures = []  # List to store temperature profiles
-        self.compositions = []  # List to store composition profiles
 
     def load_parameters(self, config_file):
         """Load priors and fixed composition from a JSON configuration file."""
@@ -66,43 +62,34 @@ class ProfileGenerator:
         T_final = T_Guillot * (1 - params['alpha'] / (1 + P / params['P_trans']))
         return T_final
 
-    def generate_profiles(self):
-        """Generate profiles based on sampled parameters and discard profiles with temperatures exceeding 5000 K."""
-        for _ in range(self.N):
+    def generate_single_profile(self):
+        """
+        Generate a single profile based on sampled parameters, ensuring temperatures do not exceed 5000 K.
+        Returns:
+        - profile (dict): Atmospheric profile data compatible with xk.Atm.
+        """
+        max_attempts = 10  # Prevent infinite loops
+        attempts = 0
+        while attempts < max_attempts:
             params = self.sample_parameters()
             T_profile = self.compute_profile(self.P, params)
             
             # Discard profile if any temperature exceeds 5000 K
             if np.any(T_profile > 5000):
+                attempts += 1
                 continue
 
-            self.temperatures.append(T_profile)
-            self.compositions.append(params['composition'])
-        
-        # Convert to arrays for compatibility
-        self.temperatures = np.array(self.temperatures)
+            # Prepare profile data
+            log_P = np.log10(self.P)  # Convert pressure to log scale
 
-    def get_profiles(self):
-        """Return generated profiles in a format compatible with xk.Atm."""
-        profiles = []
-        log_P = np.log10(self.P)  # Convert pressure to log scale
-        for i in range(len(self.temperatures)):
-            profiles.append({
+            profile = {
                 'logplay': log_P,
-                'tlay': self.temperatures[i],
-                'composition': self.compositions[i]
-            })
-        return profiles
+                'tlay': T_profile,
+                'composition': params['composition']
+            }
 
-    def save_profiles(self, filename='Data/profiles.h5'):
-        """Save profiles and pressure data to an HDF5 file."""
-        os.makedirs('Data', exist_ok=True)  # Ensure Data directory exists
-        with h5py.File(filename, 'w') as hf:
-            hf.create_dataset('P', data=self.P)
-            hf.create_dataset('temperature', data=self.temperatures, compression='gzip', compression_opts=9)
-            comp_group = hf.create_group('composition')
-            for i, comp in enumerate(self.compositions):
-                grp = comp_group.create_group(str(i))
-                for species, value in comp.items():
-                    grp.create_dataset(species, data=value)
-        print(f"Data saved to {filename} with compression.")
+            return profile
+
+        # If failed to generate a valid profile after max_attempts
+        print("Failed to generate a valid profile within maximum attempts.")
+        return None

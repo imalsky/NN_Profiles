@@ -1,45 +1,45 @@
-import numpy as np
-import h5py
-import matplotlib.pyplot as plt
+# visualize.py
 import os
+import numpy as np
+import matplotlib.pyplot as plt
+import glob
+import json
 
-# Set up style for pretty plots
 plt.style.use('science')
 
-def plot_profiles(filename='Data/profiles.h5', num_plots=10):
-    """Plot a subset of profiles from the HDF5 file and save the plot."""
+def plot_profiles(folder='Data', base_filename='prof', num_plots=10):
+    """
+    Plot a subset of PT profiles saved as JSON files in the specified folder.
     
-    # Ensure Figures directory exists
-    os.makedirs('Figures', exist_ok=True)
+    Parameters:
+    - folder (str): The folder where the profile JSON files are saved.
+    - base_filename (str): The base filename used when saving the profiles.
+    - num_plots (int): Number of profiles to plot.
+    """
+    # Get list of profile files
+    profile_files = glob.glob(os.path.join(folder, f"{base_filename}_*.json"))
+    if not profile_files:
+        print("No profile files found to plot.")
+        return
     
-    # Load data
-    with h5py.File(filename, 'r') as hf:
-        pressure = hf['P'][:]
-        temperature_profiles = hf['temperature'][:]
+    # Limit to the specified number of profiles
+    profile_files = profile_files[:num_plots]
     
-    # Adjust num_plots if it exceeds the available number of profiles
-    available_profiles = len(temperature_profiles)
-    if num_plots > available_profiles:
-        print(f"Warning: Requested {num_plots} profiles, but only {available_profiles} are available.")
-        num_plots = available_profiles
-
-    # Select a random subset of profiles to plot
-    indices = np.random.choice(available_profiles, num_plots, replace=False)
-    subset_profiles = temperature_profiles[indices, :]
+    plt.figure(figsize=(8, 10))
     
-    # Plot each selected profile
-    plt.figure(figsize=(8, 6))
-    for profile in subset_profiles:
-        plt.semilogy(profile, pressure, alpha=0.7)  # Semi-logarithmic scale for better readability
+    for profile_file in profile_files:
+        with open(profile_file, 'r') as f:
+            data = json.load(f)
+        pressure = np.array(data['pressure'])  # Should be in bar
+        temperature = np.array(data['temperature'])
+        
+        plt.semilogy(temperature, pressure)
     
-    # Customize plot appearance
-    plt.xlim(0, 5000)
-    plt.ylim(1e2, 1e-6)
+    plt.gca().invert_yaxis()
     plt.xlabel('Temperature (K)')
     plt.ylabel('Pressure (bar)')
-    plt.title('Sample Temperature-Pressure Profiles')
-    
-    # Save the plot
-    plot_filename = 'Figures/profiles.png'
-    plt.savefig(plot_filename, dpi=300)
+    plt.title('Pressure-Temperature Profiles')
+    plt.grid(True)
+    plt.savefig('Figures/pt_profiles.png')
     plt.close()
+    print("✔ Visualization saved to Figures/pt_profiles.png")
