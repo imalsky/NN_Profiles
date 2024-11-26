@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader, random_split
-from my_rnn import MyRNN
-from visualize import model_predictions
+from my_rnn import MyRNN  # Your original MyRNN architecture
+from visualize import model_predictions  # For visualizing predictions
 
 class NormalizedProfilesDataset(Dataset):
     def __init__(self, data_folder, expected_length):
@@ -46,19 +46,7 @@ class NormalizedProfilesDataset(Dataset):
         return inputs, net_fluxes
 
 def train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs, early_stopping_patience, device):
-    """
-    Train the RNN model.
-
-    Parameters:
-    - model: The RNN model to train.
-    - train_loader: DataLoader for the training set.
-    - val_loader: DataLoader for the validation set.
-    - optimizer: Optimizer for training.
-    - criterion: Loss function.
-    - num_epochs: Number of epochs to train.
-    - early_stopping_patience: Number of epochs to wait for improvement before stopping.
-    - device: The device (CPU or GPU) to use for training.
-    """
+    """Train the RNN model."""
     model.to(device)  # Move the model to the specified device
     best_val_loss = float('inf')
     patience_counter = 0
@@ -68,7 +56,6 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, num_epoch
         total_train_loss = 0.0
 
         for inputs, targets in train_loader:
-            # Move inputs and targets to the specified device
             inputs, targets = inputs.to(device), targets.to(device)
 
             # Forward pass
@@ -82,7 +69,6 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, num_epoch
 
             total_train_loss += loss.item()
 
-        # Average training loss for the epoch
         train_loss = total_train_loss / len(train_loader)
 
         # Evaluate on validation set
@@ -108,17 +94,12 @@ def evaluate_model(model, data_loader, criterion, device):
 
     with torch.no_grad():
         for inputs, targets in data_loader:
-            # Move data to the appropriate device
             inputs, targets = inputs.to(device), targets.to(device)
-
-            # Forward pass
             outputs = model(inputs_main=inputs)
             loss = criterion(outputs.squeeze(-1), targets)
             total_loss += loss.item()
 
     return total_loss / len(data_loader)
-
-
 
 def main(train_model_bool=True):
     # Set up device
@@ -127,8 +108,19 @@ def main(train_model_bool=True):
     if train_model_bool:
         # Paths and parameters
         data_folder = "Data/Normalized_Profiles"
-        expected_length = 30  # Replace with the actual expected number of layers in your profiles
+
+        # Automatically determine the expected length
+        profile_files = [f for f in os.listdir(data_folder) if f.endswith(".json")]
+        if not profile_files:
+            raise ValueError("No profiles found in the specified data folder.")
         
+        first_profile_path = os.path.join(data_folder, profile_files[0])
+        with open(first_profile_path, "r") as f:
+            first_profile = json.load(f)
+        
+        # Use the length of the "temperature" field as the expected length
+        expected_length = len(first_profile["temperature"])
+                
         # Create dataset
         dataset = NormalizedProfilesDataset(data_folder, expected_length)
         
@@ -143,12 +135,21 @@ def main(train_model_bool=True):
         val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
         test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
         
-        # Initialize model with best hyperparameters
-        model = MyRNN(RNN_type='LSTM', nx=2, ny=1, nneur=(64, 64), dropout=0.2)
+        # Initialize model
+        model = MyRNN(
+            RNN_type='LSTM',
+            nx=2,  # Number of input features (e.g., pressure, temperature)
+            ny=1,  # Number of output features (e.g., net_flux)
+            nx_sfc=0,  # Set to 0 if no surface inputs are provided
+            nneur=(64, 64),
+            outputs_one_longer=False,
+            concat=False
+        )
+
         
         # Loss function and optimizer
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=1e-4)
+        optimizer = optim.Adam(model.parameters(), lr=1e-4, weight_decay=1e-4)
 
         # Train the model
         print("Starting Training...")
@@ -163,12 +164,7 @@ def main(train_model_bool=True):
     print("\nVisualizing Predictions...")
     model_predictions(model, test_loader, save_path="Figures", device=device, N=5)
 
-
-
-
-
 if __name__ == "__main__":
-
     train_model_bool = True
 
     # Ensure Data folder exists
