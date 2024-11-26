@@ -7,12 +7,13 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from my_rnn import MyRNN  # Your original MyRNN architecture
 from visualize import model_predictions  # For visualizing predictions
 import warnings
+from utils import load_normalization_metadata
 
 warnings.filterwarnings("ignore", category=FutureWarning)  # Suppress future warnings
 
 
 class NormalizedProfilesDataset(Dataset):
-    def __init__(self, data_folder, expected_length, include_pressure=True):
+    def __init__(self, data_folder, expected_length=None, include_pressure=True):
         self.data_folder = data_folder
         self.file_list = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith(".json")]
         self.expected_length = expected_length
@@ -20,16 +21,16 @@ class NormalizedProfilesDataset(Dataset):
         self.valid_files = self._filter_valid_files()
 
         if not self.valid_files:
-            raise ValueError(f"No valid JSON profiles of length {self.expected_length} found in {data_folder}")
+            raise ValueError(f"No valid JSON profiles found in {data_folder}")
     
     def _filter_valid_files(self):
         valid_files = []
         for file_path in self.file_list:
             with open(file_path, 'r') as f:
                 profile = json.load(f)
-                if len(profile["temperature"]) == self.expected_length and \
-                   len(profile["net_flux"]) == self.expected_length and \
-                   (not self.include_pressure or len(profile["pressure"]) == self.expected_length):
+                if (self.expected_length is None or len(profile["temperature"]) == self.expected_length) and \
+                   len(profile["net_flux"]) == len(profile["temperature"]) and \
+                   (not self.include_pressure or len(profile["pressure"]) == len(profile["temperature"])):
                     valid_files.append(file_path)
                 else:
                     print(f"Skipping invalid profile: {file_path} (Incorrect length)")
@@ -110,7 +111,7 @@ def evaluate_model(model, data_loader, criterion, device):
     return total_loss / len(data_loader)
 
 
-def main(train_model_bool=True, tune_params=True, include_pressure=True):
+def main(tune_params=True, include_pressure=True, visualize_only=False):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data_folder = "Data/Normalized_Profiles"
     model_save_path = "Data/Model"
@@ -120,6 +121,27 @@ def main(train_model_bool=True, tune_params=True, include_pressure=True):
     if not profile_files:
         raise ValueError("No profiles found in the specified data folder.")
     
+    # Load normalization metadata
+    normalization_metadata = load_normalization_metadata()
+
+    if visualize_only:
+        print("\nVisualizing Predictions from Pre-Trained Model...")
+        model = MyRNN(
+            RNN_type='LSTM',
+            nx=2 if include_pressure else 1,
+            ny=1,
+            nx_sfc=0,
+            nneur=(32, 32),
+            outputs_one_longer=False,
+            concat=False
+        )
+        model.load_state_dict(torch.load(os.path.join(model_save_path, "best_model.pth"), map_location=device))
+        test_dataset = NormalizedProfilesDataset(data_folder, include_pressure=include_pressure)
+        test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
+        model_predictions(model, test_loader, normalization_metadata, save_path="Figures", device=device, N=5)
+        return
+
+    # Training pipeline
     first_profile_path = os.path.join(data_folder, profile_files[0])
     with open(first_profile_path, "r") as f:
         first_profile = json.load(f)
@@ -137,7 +159,7 @@ def main(train_model_bool=True, tune_params=True, include_pressure=True):
     if tune_params:
         # Perform hyperparameter tuning
         batch_sizes = [4, 8]
-        nneur_options = [(4,4),(32,32),(128, 128)]
+        nneur_options = [(4, 4), (32, 32), (128, 128)]
         learning_rates = [1e-4]
 
         best_config = None
@@ -194,25 +216,12 @@ def main(train_model_bool=True, tune_params=True, include_pressure=True):
         )
 
         criterion = nn.MSELoss()
-
-        #optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-        optimizer = optim.Adam(model.parameters())
-        #optimizer = optim.AdamW(model.parameters())
-
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 
         print("Starting Training...")
-        train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=200, early_stopping_patience=10, device=device, save_path=model_save_path)
+        train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, early_stopping_patience=10, device=device, save_path=model_save_path)
 
     # Load the best or default model for evaluation
-    model = MyRNN(
-        RNN_type='LSTM',
-        nx=input_features,
-        ny=1,
-        nx_sfc=0,
-        nneur=nneur,
-        outputs_one_longer=False,
-        concat=False
-    )
     model.load_state_dict(torch.load(os.path.join(model_save_path, "best_model.pth")))
 
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
@@ -222,8 +231,8 @@ def main(train_model_bool=True, tune_params=True, include_pressure=True):
     print(f"Test Loss: {test_loss:.3e}")
 
     print("\nVisualizing Predictions...")
-    model_predictions(model, test_loader, save_path="Figures", device=device, N=5)
+    model_predictions(model, test_loader, normalization_metadata, save_path="Figures", device=device, N=5)
 
 
 if __name__ == "__main__":
-    main(train_model_bool=True, tune_params=False, include_pressure=True)
+    main(tune_params=False, include_pressure=True, visualize_only=True)

@@ -69,3 +69,8 @@ def save_data(data, folder='Data/Profiles', base_filename='profile_'):
 
     with open(filename, 'w') as f:
         json.dump(data, f, indent=4)
+
+# Load normalization metadata
+def load_normalization_metadata(path="Data/Normalized_Profiles/normalization_metadata.json"):
+    with open(path, "r") as f:
+        return json.load(f)
