@@ -10,11 +10,13 @@ import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)  # Suppress future warnings
 
+
 class NormalizedProfilesDataset(Dataset):
-    def __init__(self, data_folder, expected_length):
+    def __init__(self, data_folder, expected_length, include_pressure=True):
         self.data_folder = data_folder
         self.file_list = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith(".json")]
         self.expected_length = expected_length
+        self.include_pressure = include_pressure
         self.valid_files = self._filter_valid_files()
 
         if not self.valid_files:
@@ -25,9 +27,9 @@ class NormalizedProfilesDataset(Dataset):
         for file_path in self.file_list:
             with open(file_path, 'r') as f:
                 profile = json.load(f)
-                if len(profile["pressure"]) == self.expected_length and \
-                   len(profile["temperature"]) == self.expected_length and \
-                   len(profile["net_flux"]) == self.expected_length:
+                if len(profile["temperature"]) == self.expected_length and \
+                   len(profile["net_flux"]) == self.expected_length and \
+                   (not self.include_pressure or len(profile["pressure"]) == self.expected_length):
                     valid_files.append(file_path)
                 else:
                     print(f"Skipping invalid profile: {file_path} (Incorrect length)")
@@ -41,14 +43,19 @@ class NormalizedProfilesDataset(Dataset):
         with open(file_path, 'r') as f:
             profile = json.load(f)
         
-        pressures = torch.tensor(profile["pressure"], dtype=torch.float32)
         temperatures = torch.tensor(profile["temperature"], dtype=torch.float32)
         net_fluxes = torch.tensor(profile["net_flux"], dtype=torch.float32)
-        
-        inputs = torch.stack([pressures, temperatures], dim=1)
+
+        if self.include_pressure:
+            pressures = torch.tensor(profile["pressure"], dtype=torch.float32)
+            inputs = torch.stack([pressures, temperatures], dim=1)
+        else:
+            inputs = temperatures.unsqueeze(1)
+
         return inputs, net_fluxes
 
-def train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs, early_stopping_patience, device):
+
+def train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs, early_stopping_patience, device, save_path):
     """Train the RNN model."""
     model.to(device)
     best_val_loss = float('inf')
@@ -78,7 +85,7 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, num_epoch
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), "Data/best_model_tuned.pth")
+            torch.save(model.state_dict(), os.path.join(save_path, "best_model.pth"))
         else:
             patience_counter += 1
             if patience_counter >= early_stopping_patience:
@@ -86,6 +93,7 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, num_epoch
                 break
 
     return best_val_loss
+
 
 def evaluate_model(model, data_loader, criterion, device):
     """Evaluate the model on a validation or test dataset."""
@@ -101,9 +109,12 @@ def evaluate_model(model, data_loader, criterion, device):
 
     return total_loss / len(data_loader)
 
-def main(train_model_bool=True, tune_params=True):
+
+def main(train_model_bool=True, tune_params=True, include_pressure=True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     data_folder = "Data/Normalized_Profiles"
+    model_save_path = "Data/Model"
+    os.makedirs(model_save_path, exist_ok=True)
 
     profile_files = [f for f in os.listdir(data_folder) if f.endswith(".json")]
     if not profile_files:
@@ -114,18 +125,20 @@ def main(train_model_bool=True, tune_params=True):
         first_profile = json.load(f)
     
     expected_length = len(first_profile["temperature"])
-    dataset = NormalizedProfilesDataset(data_folder, expected_length)
+    dataset = NormalizedProfilesDataset(data_folder, expected_length, include_pressure=include_pressure)
 
     train_size = int(0.7 * len(dataset))
     val_size = int(0.15 * len(dataset))
     test_size = len(dataset) - train_size - val_size
     train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
 
+    input_features = 2 if include_pressure else 1
+
     if tune_params:
         # Perform hyperparameter tuning
-        batch_sizes = [8, 16]
-        nneur_options = [(32, 32), (64, 64), (128, 128)]
-        learning_rates = [1e-3, 1e-4]
+        batch_sizes = [4, 8]
+        nneur_options = [(4,4),(32,32),(128, 128)]
+        learning_rates = [1e-4]
 
         best_config = None
         best_val_loss = float("inf")
@@ -140,7 +153,7 @@ def main(train_model_bool=True, tune_params=True):
 
                     model = MyRNN(
                         RNN_type='LSTM',
-                        nx=2,
+                        nx=input_features,
                         ny=1,
                         nx_sfc=0,
                         nneur=nneur,
@@ -151,12 +164,11 @@ def main(train_model_bool=True, tune_params=True):
                     criterion = nn.MSELoss()
                     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 
-                    val_loss = train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, early_stopping_patience=10, device=device)
+                    val_loss = train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, early_stopping_patience=10, device=device, save_path=model_save_path)
 
                     if val_loss < best_val_loss:
                         best_val_loss = val_loss
                         best_config = {"batch_size": batch_size, "nneur": nneur, "learning_rate": lr}
-                        torch.save(model.state_dict(), "Data/best_model_tuned.pth")
 
         print(f"Best Config: {best_config}, Best Validation Loss: {best_val_loss:.3e}")
 
@@ -164,7 +176,7 @@ def main(train_model_bool=True, tune_params=True):
 
     else:
         # Use default parameters
-        batch_size, nneur, lr = 8, (32, 32), 1e-4
+        batch_size, nneur, lr = 4, (32, 32), 1e-4
 
         print(f"Using default parameters: Batch size={batch_size}, Hidden layers={nneur}, Learning rate={lr}")
 
@@ -173,7 +185,7 @@ def main(train_model_bool=True, tune_params=True):
 
         model = MyRNN(
             RNN_type='LSTM',
-            nx=2,
+            nx=input_features,
             ny=1,
             nx_sfc=0,
             nneur=nneur,
@@ -182,28 +194,26 @@ def main(train_model_bool=True, tune_params=True):
         )
 
         criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+
+        #optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+        optimizer = optim.Adam(model.parameters())
+        #optimizer = optim.AdamW(model.parameters())
+
 
         print("Starting Training...")
-        train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=200, early_stopping_patience=10, device=device)
-
-        torch.save(model.state_dict(), "Data/default_model.pth")
+        train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=200, early_stopping_patience=10, device=device, save_path=model_save_path)
 
     # Load the best or default model for evaluation
     model = MyRNN(
         RNN_type='LSTM',
-        nx=2,
+        nx=input_features,
         ny=1,
         nx_sfc=0,
         nneur=nneur,
         outputs_one_longer=False,
         concat=False
     )
-
-    if tune_params:
-        model.load_state_dict(torch.load("Data/best_model_tuned.pth", weights_only=True))
-    else:
-        model.load_state_dict(torch.load("Data/default_model.pth", weights_only=True))
+    model.load_state_dict(torch.load(os.path.join(model_save_path, "best_model.pth")))
 
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
@@ -216,4 +226,4 @@ def main(train_model_bool=True, tune_params=True):
 
 
 if __name__ == "__main__":
-    main(train_model_bool=True, tune_params=False)
+    main(train_model_bool=True, tune_params=False, include_pressure=True)

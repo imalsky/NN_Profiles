@@ -90,6 +90,7 @@ def plot_fluxes(folder, base_filename, num_profiles):
     
     plt.yscale('log')
     plt.ylim(1e2, 1e-5)
+    plt.xlim(0, 1e6)
 
     plt.xlabel(r'Net Flux (W/m$^2$)')
     plt.ylabel('Pressure (bar)')

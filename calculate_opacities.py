@@ -63,7 +63,7 @@ def set_stellar_spectrum(datapath, filename):
     return stellar_spectrum
 
 
-def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh=True, stellar_spectrum=None, tstar=None):
+def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh=False, stellar_spectrum=None, tstar=None):
     """
     Calculate opacity structure for a single atmospheric profile.
 

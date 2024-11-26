@@ -10,8 +10,9 @@ input_folder = "Data/Profiles"
 output_folder = "Data/Normalized_Profiles"
 os.makedirs(output_folder, exist_ok=True)
 
-def calculate_global_min_max(input_folder):
-    """Calculate global min and max for each variable."""
+
+def calculate_global_stats(input_folder):
+    """Calculate global stats for each variable."""
     pressure_values = []
     temperature_values = []
     net_flux_values = []
@@ -27,47 +28,57 @@ def calculate_global_min_max(input_folder):
         input_path = os.path.join(input_folder, profile_file)
         with open(input_path, "r") as f:
             profile = json.load(f)
-        
+
         pressure_values.extend(np.log10(profile["pressure"]))
         temperature_values.extend(profile["temperature"])
         net_flux_values.extend(profile["net_flux"])
         tstar_values.append(profile["Tstar"])
 
-    # Get global max temperature
-    global_temp_max = max(temperature_values)
-
-    # Dynamically calculate NET_FLUX_MAX
-    global_net_flux_max = STEFAN_BOLTZMANN_CONSTANT * global_temp_max**4
-
-    # Print the global max for temperature and net flux
-    print(f"Temperature Max: {global_temp_max}")
-    print(f"Net Flux Max: {global_net_flux_max}")
-
-    global_min_max = {
-        "pressure": (min(pressure_values), max(pressure_values)),
-        "temperature_max": global_temp_max,
-        "net_flux_max": global_net_flux_max,
-        "Tstar": (min(tstar_values), max(tstar_values))
+    # Calculate stats
+    stats = {
+        "pressure": {"min": min(pressure_values), "max": max(pressure_values)},
+        "temperature": {
+            "min": min(temperature_values),
+            "max": max(temperature_values),
+            "mean": np.mean(temperature_values),
+            "std": np.std(temperature_values),
+        },
+        "net_flux": {
+            "mean": np.mean(net_flux_values),
+            "std": np.std(net_flux_values),
+        },
+        "Tstar": {"min": min(tstar_values), "max": max(tstar_values)},
     }
-    
-    return global_min_max
 
-def normalize(data, global_min, global_max):
+    # Print stats for debugging
+    print(f"Pressure Min: {stats['pressure']['min']}, Max: {stats['pressure']['max']}")
+    print(
+        f"Temperature Min: {stats['temperature']['min']}, Max: {stats['temperature']['max']}, "
+        f"Mean: {stats['temperature']['mean']}, Std: {stats['temperature']['std']}"
+    )
+    print(
+        f"Net Flux Mean: {stats['net_flux']['mean']}, Std: {stats['net_flux']['std']}"
+    )
+    print(f"Tstar Min: {stats['Tstar']['min']}, Max: {stats['Tstar']['max']}")
+
+    return stats
+
+
+def normalize_min_max(data, global_min, global_max):
     """Normalize data to [0, 1] using global min and max."""
     if global_min == global_max:
-        # If min and max are the same, all values are constant; assign normalized value of 0
-        return 0 if isinstance(data, (int, float)) else np.zeros_like(data)
+        return np.zeros_like(data)
     return (data - global_min) / (global_max - global_min)
 
-def normalize_temperature(temperature, temp_max):
-    """Normalize temperature to [0, 1] based on MAX_TEMPERATURE."""
-    return normalize(temperature, 0, temp_max)
 
-def normalize_net_flux(net_flux, net_flux_max):
-    """Normalize net flux to [0, 1] based on MAX_NET_FLUX."""
-    return normalize(net_flux, 0, net_flux_max)
+def normalize_standard(data, mean, std):
+    """Standardize data to have mean 0 and standard deviation 1."""
+    if std == 0:
+        return data - mean
+    return (data - mean) / std
 
-def process_profiles(input_folder, output_folder, global_min_max):
+
+def process_profiles(input_folder, output_folder, stats):
     """Process and normalize all profiles in the input folder."""
     profile_files = [f for f in os.listdir(input_folder) if f.endswith(".json")]
 
@@ -77,8 +88,8 @@ def process_profiles(input_folder, output_folder, global_min_max):
 
     # Save normalization metadata
     normalization_metadata = {
-        **global_min_max,
-        "stefan_boltzmann_constant": STEFAN_BOLTZMANN_CONSTANT
+        **stats,
+        "stefan_boltzmann_constant": STEFAN_BOLTZMANN_CONSTANT,
     }
     metadata_path = os.path.join(output_folder, "normalization_metadata.json")
     with open(metadata_path, "w") as f:
@@ -88,35 +99,35 @@ def process_profiles(input_folder, output_folder, global_min_max):
     for profile_file in profile_files:
         input_path = os.path.join(input_folder, profile_file)
         output_path = os.path.join(output_folder, profile_file)
-        
+
         with open(input_path, "r") as f:
             profile = json.load(f)
 
-        # Normalize each variable using global min and max
-        pressure_log = np.log10(profile["pressure"])
-        profile["pressure"] = normalize(pressure_log, *global_min_max["pressure"]).tolist()
+        # Normalize pressure
+        profile["pressure"] = normalize_min_max(np.log10(profile["pressure"]),stats["pressure"]["min"],stats["pressure"]["max"]).tolist()
 
-        # Keep a copy of the original unnormalized temperature for debugging
-        unnormalized_temperature = np.array(profile["temperature"])
+        # Normalize temperature: Use standardization (mean/std)
+        temp_mean = stats["temperature"]["mean"]
+        temp_std = stats["temperature"]["std"]
+        profile["temperature"] = normalize_standard(np.array(profile["temperature"]), temp_mean, temp_std).tolist()
 
-        # Normalize the temperature using MAX_TEMPERATURE
-        temp_max = global_min_max["temperature_max"]
-        profile["temperature"] = normalize_temperature(unnormalized_temperature, temp_max).tolist()
+        # Normalize net flux: Use standardization (mean/std)
+        net_flux_mean = stats["net_flux"]["mean"]
+        net_flux_std = stats["net_flux"]["std"]
+        profile["net_flux"] = normalize_standard(np.array(profile["net_flux"]), net_flux_mean, net_flux_std).tolist()
 
-        # Normalize the net flux using MAX_NET_FLUX
-        net_flux_max = global_min_max["net_flux_max"]
-        profile["net_flux"] = normalize_net_flux(np.array(profile["net_flux"]), net_flux_max).tolist()
-
-        profile["Tstar"] = normalize(profile["Tstar"], *global_min_max["Tstar"])
+        # Normalize Tstar
+        profile["Tstar"] = normalize_min_max(profile["Tstar"], stats["Tstar"]["min"], stats["Tstar"]["max"]).tolist()
 
         # Save the normalized profile
         with open(output_path, "w") as f:
             json.dump(profile, f, indent=4)
 
-# Calculate global min and max
-global_min_max = calculate_global_min_max(input_folder)
 
-# Process profiles with global min and max
-if global_min_max:
-    print("Global min and max values calculated:", global_min_max)
-    process_profiles(input_folder, output_folder, global_min_max)
+# Calculate global stats
+global_stats = calculate_global_stats(input_folder)
+
+# Process profiles with global stats
+if global_stats:
+    print("Global stats calculated:", global_stats)
+    process_profiles(input_folder, output_folder, global_stats)
