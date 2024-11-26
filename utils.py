@@ -27,7 +27,7 @@ def sample_constant_or_distribution(param_config):
         raise ValueError(f"Unsupported distribution type: {param_config['dist']}")
 
 
-def delete_old_profiles(folder='Data', base_filename='prof'):
+def delete_old_profiles(folder='Data/Profiles', base_filename='prof'):
     """
     Delete all old profile files in the specified folder.
 
@@ -45,4 +45,27 @@ def delete_old_profiles(folder='Data', base_filename='prof'):
             os.remove(os.path.join(folder, file))
             deleted_files += 1
 
-    print(f"Deleted {deleted_files} old profile(s) in '{folder}'.")
+    #print(f"Deleted {deleted_files} old profile(s) in '{folder}'.")
+
+
+def save_data(data, folder='Data/Profiles', base_filename='profile_'):
+    """
+    Save data in dictionary format to a JSON file with a unique ordered filename.
+
+    Parameters:
+    - data (dict): Dictionary containing the data to save.
+    - folder (str): Path to the folder where data will be saved.
+    - base_filename (str): Base name for the saved file.
+    """
+    os.makedirs(folder, exist_ok=True)
+
+    # Find the next available index
+    existing_files = [f for f in os.listdir(folder) if f.startswith(base_filename) and f.endswith('.json')]
+    indices = [int(f.split('_')[-1].split('.')[0]) for f in existing_files if '_' in f and f.split('_')[-1].split('.')[0].isdigit()]
+    next_index = max(indices) + 1 if indices else 1
+
+    # Construct unique filename
+    filename = os.path.join(folder, f"{base_filename}_{next_index}.json")
+
+    with open(filename, 'w') as f:
+        json.dump(data, f, indent=4)

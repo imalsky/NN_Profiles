@@ -1,132 +1,176 @@
-import numpy as np
 import os
-import gc
-from calculate_profiles import (
-    initialize_opacity_databases,
-    set_stellar_spectrum,
-    calculate_opacity_structure,
-    calculate_heating_rates_and_fluxes,
-    save_data
-)
-from pt_profile_generator import ProfileGenerator
-from visualize import plot_profiles
-from utils import (
-    load_config,
-    create_directories,
-    sample_constant_or_distribution,
-    delete_old_profiles
-)
+import json
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader, random_split
+from my_rnn import MyRNN
+from visualize import model_predictions
 
-# Load configuration
-config = load_config()
+class NormalizedProfilesDataset(Dataset):
+    def __init__(self, data_folder, expected_length):
+        self.data_folder = data_folder
+        self.file_list = [os.path.join(data_folder, f) for f in os.listdir(data_folder) if f.endswith(".json")]
+        self.expected_length = expected_length
+        self.valid_files = self._filter_valid_files()
 
-# Ensure required directories exist
-create_directories('Inputs', 'Data', 'Figures')
+        if not self.valid_files:
+            raise ValueError(f"No valid JSON profiles of length {self.expected_length} found in {data_folder}")
+    
+    def _filter_valid_files(self):
+        valid_files = []
+        for file_path in self.file_list:
+            with open(file_path, 'r') as f:
+                profile = json.load(f)
+                if len(profile["pressure"]) == self.expected_length and \
+                   len(profile["temperature"]) == self.expected_length and \
+                   len(profile["net_flux"]) == self.expected_length:
+                    valid_files.append(file_path)
+                else:
+                    print(f"Skipping invalid profile: {file_path} (Incorrect length)")
+        return valid_files
 
-# Generate the pressure array
-pressure_range = config['pressure_range']
-P = np.logspace(
-    np.log10(pressure_range['min']),
-    np.log10(pressure_range['max']),
-    num=pressure_range['points']
-)
+    def __len__(self):
+        return len(self.valid_files)
+    
+    def __getitem__(self, idx):
+        file_path = self.valid_files[idx]
+        with open(file_path, 'r') as f:
+            profile = json.load(f)
+        
+        pressures = torch.tensor(profile["pressure"], dtype=torch.float32)
+        temperatures = torch.tensor(profile["temperature"], dtype=torch.float32)
+        net_fluxes = torch.tensor(profile["net_flux"], dtype=torch.float32)
+        
+        inputs = torch.stack([pressures, temperatures], dim=1)
+        return inputs, net_fluxes
 
-# Sample planet parameters
-grav = sample_constant_or_distribution(config['planet_params']['grav'])
-rcp = sample_constant_or_distribution(config['planet_params']['rcp'])
-albedo_surf = sample_constant_or_distribution(config['planet_params']['albedo_surf'])
-Rp = sample_constant_or_distribution(config['planet_params']['Rp'])
+def train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs, early_stopping_patience, device):
+    """
+    Train the RNN model.
 
-if __name__ == '__main__':
-    print("\n" + "=" * 70)
-    print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
-    print("=" * 70)
+    Parameters:
+    - model: The RNN model to train.
+    - train_loader: DataLoader for the training set.
+    - val_loader: DataLoader for the validation set.
+    - optimizer: Optimizer for training.
+    - criterion: Loss function.
+    - num_epochs: Number of epochs to train.
+    - early_stopping_patience: Number of epochs to wait for improvement before stopping.
+    - device: The device (CPU or GPU) to use for training.
+    """
+    model.to(device)  # Move the model to the specified device
+    best_val_loss = float('inf')
+    patience_counter = 0
 
-    # Step 1: Clean up old profiles
-    print("\n[1] Deleting old profiles...")
-    delete_old_profiles(folder='Data', base_filename='prof')
+    for epoch in range(num_epochs):
+        model.train()
+        total_train_loss = 0.0
 
-    # Step 2: Initialize opacity databases
-    print("\n[2] Initializing Opacity Databases...")
-    k_db, cia_db, species = initialize_opacity_databases(config_file='Inputs/parameters.json')
-    print("✔ Opacity databases initialized.")
+        for inputs, targets in train_loader:
+            # Move inputs and targets to the specified device
+            inputs, targets = inputs.to(device), targets.to(device)
 
-    # Step 3: Set the stellar spectrum
-    print("\n[3] Loading Stellar Spectrum...")
-    stellar_spectrum_file = config['model_params'].get('stellar_spectrum_file', 'stellar_spectra/default_spectrum.dat')
-    stellar_spectrum = set_stellar_spectrum(datapath=config['datapath'], filename=stellar_spectrum_file)
-    print(f"✔ Stellar spectrum loaded successfully.")
+            # Forward pass
+            outputs = model(inputs_main=inputs)
+            loss = criterion(outputs.squeeze(-1), targets)
 
-    # Step 4: Generate and process PT profiles sequentially
-    print("\n[4] Generating and Processing Pressure-Temperature Profiles...")
-    generator = ProfileGenerator(
-        N=1000,  # Number of profiles to generate
-        P=P,
-        config_file='Inputs/parameters.json'
-    )
+            # Backward pass
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    # Generate and process profiles one at a time
-    successful_profiles = 0
-    max_attempts = generator.N * 2  # To prevent infinite loops
-    attempts = 0
+            total_train_loss += loss.item()
 
-    while successful_profiles < generator.N and attempts < max_attempts:
-        print(f"\nProcessing profile {successful_profiles + 1} of {generator.N}...")
-        profile = generator.generate_single_profile()
-        if profile is None:
-            print("Failed to generate a valid profile, trying again...")
-            attempts += 1
-            continue
+        # Average training loss for the epoch
+        train_loss = total_train_loss / len(train_loader)
 
-        # Step 5: Calculate opacity structure for the current profile
-        atm = calculate_opacity_structure(
-            profile=profile,
-            k_db=k_db,
-            cia_db=cia_db,
-            grav=grav,
-            rcp=rcp,
-            albedo_surf=albedo_surf,
-            Rp=Rp,
-            rayleigh=config['model_params'].get('rayleigh', False),
-            stellar_spectrum=stellar_spectrum,
-            tstar=config['model_params'].get('Tstar', None)
-        )
-        if atm is None:
-            print(f"Skipping profile {successful_profiles + 1} due to errors.")
-            attempts += 1
-            continue
+        # Evaluate on validation set
+        val_loss = evaluate_model(model, val_loader, criterion, device)
 
-        # Step 6: Calculate heating rates and fluxes
-        heat_rates, net_fluxes, TOA_flux = calculate_heating_rates_and_fluxes(
-            atm,
-            wl_range=config['model_params'].get('wavelength_range', [0.1, 50.0]),
-            rayleigh=config['model_params'].get('rayleigh', False)
-        )
-        if heat_rates is None:
-            print(f"Skipping profile {successful_profiles + 1} due to errors in heating rate calculations.")
-            attempts += 1
-            continue
+        print(f"Epoch {epoch+1}/{num_epochs}, Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
-        # Step 7: Save data for the current profile
-        data_to_save = {
-            "pressure": list(10**np.array(atm.data_dict['pressure'])),
-            "temperature": list(atm.data_dict['temperature']),
-            "Tstar": config['model_params'].get('Tstar', None),
-            "flux_up_bol": list(net_fluxes)
-        }
-        save_data(data_to_save, folder='Data', base_filename='prof')
+        # Early stopping logic
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience_counter = 0
+            torch.save(model.state_dict(), "Data/best_model.pth")
+        else:
+            patience_counter += 1
+            if patience_counter >= early_stopping_patience:
+                print("Early stopping triggered!")
+                break
 
-        # Step 8: Clean up to free memory
-        del atm
-        gc.collect()
+def evaluate_model(model, data_loader, criterion, device):
+    """Evaluate the model on a validation or test dataset."""
+    model.eval()
+    total_loss = 0.0
 
-        successful_profiles += 1
-        attempts += 1
+    with torch.no_grad():
+        for inputs, targets in data_loader:
+            # Move data to the appropriate device
+            inputs, targets = inputs.to(device), targets.to(device)
 
-    # Step 9: Visualize PT profiles (optional)
-    print("\n[5] Visualizing PT Profiles...")
-    plot_profiles(folder='Data', base_filename='prof', num_plots=min(successful_profiles, 10))
+            # Forward pass
+            outputs = model(inputs_main=inputs)
+            loss = criterion(outputs.squeeze(-1), targets)
+            total_loss += loss.item()
 
-    print("\n" + "=" * 70)
-    print(f"{'PIPELINE COMPLETED SUCCESSFULLY':^70}")
-    print("=" * 70)
+    return total_loss / len(data_loader)
+
+
+
+def main(train_model_bool=True):
+    # Set up device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    if train_model_bool:
+        # Paths and parameters
+        data_folder = "Data/Normalized_Profiles"
+        expected_length = 30  # Replace with the actual expected number of layers in your profiles
+        
+        # Create dataset
+        dataset = NormalizedProfilesDataset(data_folder, expected_length)
+        
+        # Split dataset into train, validation, and test sets
+        train_size = int(0.7 * len(dataset))
+        val_size = int(0.15 * len(dataset))
+        test_size = len(dataset) - train_size - val_size
+        train_dataset, val_dataset, test_dataset = random_split(dataset, [train_size, val_size, test_size])
+        
+        # Data loaders
+        train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False)
+        test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
+        
+        # Initialize model with best hyperparameters
+        model = MyRNN(RNN_type='LSTM', nx=2, ny=1, nneur=(64, 64), dropout=0.2)
+        
+        # Loss function and optimizer
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(model.parameters(), lr=1e-5, weight_decay=1e-4)
+
+        # Train the model
+        print("Starting Training...")
+        train_model(model, train_loader, val_loader, optimizer, criterion, num_epochs=100, early_stopping_patience=10, device=device)
+        
+        # Evaluate on test set
+        print("\nEvaluating on Test Set...")
+        test_loss = evaluate_model(model, test_loader, criterion, device)
+        print(f"Test Loss: {test_loss:.4f}")
+    
+    # Visualize predictions
+    print("\nVisualizing Predictions...")
+    model_predictions(model, test_loader, save_path="Figures", device=device, N=5)
+
+
+
+
+
+if __name__ == "__main__":
+
+    train_model_bool = True
+
+    # Ensure Data folder exists
+    os.makedirs("Data", exist_ok=True)
+    main(train_model_bool)
