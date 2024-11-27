@@ -22,12 +22,17 @@ NN_Profiles/
 ├── Figures/                    # Directory for saving prediction plots.
 │
 ├── main.py                     # Main pipeline for training, testing, and visualization.
+├── models.py
+├── dataset.py
+├── train.py
+├── losses.py
 ├── normalize_data.py           # Script for preprocessing and normalizing the data.
 ├── visualize.py                # Visualization utilities for predictions and performance.
-├── my_rnn.py                   # Implementation of the RNN architecture.
 ├── utils.py                    # Utility functions for loading metadata and auxiliary tasks.
-├── requirements.txt            # List of required Python dependencies.
 └── README.md                   # Documentation for the project.
+
+
+
 
 
 ## Workflow
@@ -82,3 +87,15 @@ This will load the best saved model and visualize the predictions against actual
 
 
 
+
+
+
+Workflow:
+- Edit the parameters.json file
+- run create_training.py
+- run normalize_data.py
+- run main.py
+
+
+
+python normalize.py --pressure_norm standard --temperature_norm min-max --net_flux_norm none

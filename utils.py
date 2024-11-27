@@ -71,6 +71,10 @@ def save_data(data, folder='Data/Profiles', base_filename='profile_'):
         json.dump(data, f, indent=4)
 
 # Load normalization metadata
-def load_normalization_metadata(path="Data/Normalized_Profiles/normalization_metadata.json"):
-    with open(path, "r") as f:
-        return json.load(f)
+def load_normalization_metadata(metadata_path="Data/Normalized_Profiles/normalization_metadata.json"):
+    if not os.path.exists(metadata_path):
+        raise FileNotFoundError(f"Normalization metadata not found at {metadata_path}")
+
+    with open(metadata_path, 'r') as f:
+        normalization_metadata = json.load(f)
+    return normalization_metadata

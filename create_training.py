@@ -42,7 +42,7 @@ rcp = sample_constant_or_distribution(config['planet_params']['rcp'])
 albedo_surf = sample_constant_or_distribution(config['planet_params']['albedo_surf'])
 Rp = sample_constant_or_distribution(config['planet_params']['Rp'])
 
-gen_samples = False
+gen_samples = True
 if gen_samples:
     print("\n" + "=" * 70)
     print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
