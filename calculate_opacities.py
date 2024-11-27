@@ -3,7 +3,6 @@ import json
 import exo_k as xk
 import numpy as np
 
-
 def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     """
     Initialize k-table and CIA databases for opacity calculations.
@@ -16,9 +15,12 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     - cia_db (xk.CIAdatabase): CIA database.
     - species (list): List of species inferred from the k_table_files and cia_species.
     """
+
+    # Get the user defined params
     with open(config_file, 'r') as f:
         config = json.load(f)
     
+    # Pick your k tables and CIA species
     datapath = config['datapath']
     k_table_files = config['k_table_files']
     cia_species = config['cia_species']
@@ -58,8 +60,6 @@ def set_stellar_spectrum(datapath, filename):
         input_spectral_unit='nm'
     )
 
-    #print(f"Stellar spectrum loaded from {spectrum_path}.")
-
     return stellar_spectrum
 
 
@@ -84,7 +84,8 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
     """    
 
     try:
-        # Initialize atmosphere with all parameters, including stellar spectrum
+        # Initialize atmosphere with all parameters
+        # Right now its not using a stellar spectrum
         atm = xk.Atm(
             logplay=profile['logplay'],
             tlay=profile['tlay'],

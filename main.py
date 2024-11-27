@@ -231,8 +231,8 @@ def main(tune_params=True, include_pressure=True, visualize_only=False):
     print(f"Test Loss: {test_loss:.3e}")
 
     print("\nVisualizing Predictions...")
-    model_predictions(model, test_loader, normalization_metadata, save_path="Figures", device=device, N=5)
+    model_predictions(model, test_loader, normalization_metadata, save_path="Figures", device=device, N=2)
 
 
 if __name__ == "__main__":
-    main(tune_params=False, include_pressure=True, visualize_only=True)
+    main(tune_params=False, include_pressure=True, visualize_only=False)

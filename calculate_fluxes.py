@@ -15,6 +15,8 @@ def calculate_heating_rates_and_fluxes(atm, wl_range, rayleigh):
     """
     try:
         # Compute TOA flux
+        # This is with the toon two stream method
+        # Eventually I'll prob replace it with a DISORT method
         TOA_flux = atm.emission_spectrum_2stream(
             integral=True,
             wl_range=wl_range,
@@ -22,6 +24,8 @@ def calculate_heating_rates_and_fluxes(atm, wl_range, rayleigh):
         )
 
         # Compute heating rates and net fluxes
+        # Heating rates are not used
+        # I prefer to use only fluxes
         heat_rates, net_fluxes = atm.heating_rate()
         
         return heat_rates, net_fluxes, TOA_flux
