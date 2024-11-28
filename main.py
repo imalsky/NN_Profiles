@@ -12,10 +12,6 @@ from train import train_model, evaluate_model
 import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from create_training import gen_profiles
-from visualize import (
-    plot_fluxes,
-    plot_profiles
-    )
 from normalize import calculate_global_stats, process_profiles
 import warnings
 
@@ -63,12 +59,7 @@ def main(gen_profiles_bool=False,
         Rp = sample_constant_or_distribution(config['planet_params']['Rp'])
 
         gen_profiles(config, P, grav, rcp, albedo_surf, Rp)
-    
-    # Plot some of the profiles
-    if plot_profiles_bool:
-        print("\nVisualizing PT Profiles...")
-        plot_profiles(folder='Data/Profiles', base_filename='prof', num_profiles=10) 
-        plot_fluxes(folder='Data/Profiles', base_filename='prof', num_profiles=10)
+
 
     if normalize_data_bool:
         # Configuration
@@ -214,7 +205,7 @@ if __name__ == "__main__":
     # BasicRNN
     # RNN_New
     main(
-        gen_profiles_bool=False,
+        gen_profiles_bool=True,
         plot_profiles_bool=True,
         normalize_data_bool=True,
         create_rnn_model=True,
