@@ -21,16 +21,26 @@ NN_Profiles/
 │
 ├── Figures/                    # Directory for saving prediction plots.
 │
+├── Inputs/                     # Input configuration files for simulation parameters.
+│   ├── parameters.json         # Configuration file with planet and simulation parameters.
+│
+├── Scripts/                    # Optional: Collection of helper or standalone scripts.
+├── create_training.py          # Script to generate training datasets.
+├── pt_profile_generator.py     # Script for generating PT profiles.
+├── calculate_fluxes.py         # Functions for computing heating rates and fluxes.
+├── calculate_opacities.py      # Functions for generating opacity data.
+├── normalize.py                # Script for preprocessing and normalizing the data.
+│
 ├── main.py                     # Main pipeline for training, testing, and visualization.
-├── models.py
-├── dataset.py
-├── train.py
-├── losses.py
-├── normalize_data.py           # Script for preprocessing and normalizing the data.
+├── models.py                   # Defines the RNN architectures and other models.
+├── dataset.py                  # Dataset and DataLoader definitions.
+├── train.py                    # Training routines for the models.
 ├── visualize.py                # Visualization utilities for predictions and performance.
-├── utils.py                    # Utility functions for loading metadata and auxiliary tasks.
-└── README.md                   # Documentation for the project.
+├── visualize.ipynb                # Visualization utilities for predictions and performance.
 
+├── utils.py                    # Utility functions for loading metadata and auxiliary tasks.
+├── sbatch_job
+└── README.md                   # Documentation for the project.
 
 
 

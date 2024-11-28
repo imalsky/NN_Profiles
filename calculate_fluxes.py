@@ -1,4 +1,3 @@
-
 def calculate_heating_rates_and_fluxes(atm, wl_range, rayleigh):
     """
     Calculate heating rates and fluxes for an atmospheric model.

@@ -1,49 +1,20 @@
 import numpy as np
-import os
 import gc
 from calculate_opacities import (
     initialize_opacity_databases,
-    set_stellar_spectrum,
     calculate_opacity_structure
 )
 from calculate_fluxes import (
     calculate_heating_rates_and_fluxes
 )
 from pt_profile_generator import ProfileGenerator
-from visualize import (
-    plot_profiles,
-    plot_fluxes
-)
+
 from utils import (
-    load_config,
-    create_directories,
-    sample_constant_or_distribution,
     delete_old_profiles,
     save_data
 )
 
-# Load configuration
-config = load_config(config_file='Inputs/parameters.json')  # Specify the config file path if necessary
-
-# Ensure required directories exist
-create_directories('Inputs', 'Data', 'Figures')
-
-# Generate the pressure array
-pressure_range = config['pressure_range']
-P = np.logspace(
-    np.log10(pressure_range['min']),
-    np.log10(pressure_range['max']),
-    num=pressure_range['points']
-)
-
-# Sample planet parameters
-grav = sample_constant_or_distribution(config['planet_params']['grav'])
-rcp = sample_constant_or_distribution(config['planet_params']['rcp'])
-albedo_surf = sample_constant_or_distribution(config['planet_params']['albedo_surf'])
-Rp = sample_constant_or_distribution(config['planet_params']['Rp'])
-
-gen_samples = True
-if gen_samples:
+def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
     print("\n" + "=" * 70)
     print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
     print("=" * 70)
@@ -136,8 +107,3 @@ if gen_samples:
     print("\n" + "=" * 70)
     print(f"{'PIPELINE COMPLETED SUCCESSFULLY':^70}")
     print("=" * 70)
-
-# Step 9: Visualize PT profiles (optional)
-print("\nVisualizing PT Profiles...")
-plot_profiles(folder='Data/Profiles', base_filename='prof', num_profiles=10) 
-plot_fluxes(folder='Data/Profiles', base_filename='prof', num_profiles=10)

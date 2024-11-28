@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 
-def calculate_global_stats(input_folder):
+def calculate_global_stats(input_folder, pressure_normalization_method):
     """Calculate global stats for variables that need standardization."""
     temperature_ratios = []
     net_flux_values = []
@@ -79,18 +79,18 @@ def calculate_global_stats(input_folder):
             "min": min_log_pressure,
             "max": max_log_pressure
         }
-        print(f"Pressure (log) Min: {min_log_pressure}, Max: {max_log_pressure}")
+        #print(f"Pressure (log) Min: {min_log_pressure}, Max: {max_log_pressure}")
 
     # Print stats for debugging
-    print("\nCalculated Global Statistics:")
-    print(f"Temperature/Tstar Mean: {stats['temperature_ratio']['mean']:.3f}, Std: {stats['temperature_ratio']['std']:.3f}")
-    print(f"Net Flux Mean: {stats['net_flux']['mean']:.3e}, Std: {stats['net_flux']['std']:.3e}")
-    print(f"Tstar Mean: {stats['Tstar']['mean']:.2f}, Std: {stats['Tstar']['std']:.2f}, Min: {stats['Tstar']['min']}, Max: {stats['Tstar']['max']}")
+    #print("\nCalculated Global Statistics:")
+    #print(f"Temperature/Tstar Mean: {stats['temperature_ratio']['mean']:.3f}, Std: {stats['temperature_ratio']['std']:.3f}")
+    #print(f"Net Flux Mean: {stats['net_flux']['mean']:.3e}, Std: {stats['net_flux']['std']:.3e}")
+    #print(f"Tstar Mean: {stats['Tstar']['mean']:.2f}, Std: {stats['Tstar']['std']:.2f}, Min: {stats['Tstar']['min']}, Max: {stats['Tstar']['max']}")
 
-    if pressure_normalization_method == 'standard':
-        print(f"Pressure (log) Mean: {stats['log_pressure']['mean']:.3f}, Std: {stats['log_pressure']['std']:.3f}")
-    elif pressure_normalization_method == 'min-max':
-        print(f"Pressure (log) Min: {stats['log_pressure']['min']}, Max: {stats['log_pressure']['max']}")
+    #if pressure_normalization_method == 'standard':
+    #    print(f"Pressure (log) Mean: {stats['log_pressure']['mean']:.3f}, Std: {stats['log_pressure']['std']:.3f}")
+    #elif pressure_normalization_method == 'min-max':
+    #    print(f"Pressure (log) Min: {stats['log_pressure']['min']}, Max: {stats['log_pressure']['max']}")
 
     return stats
 
@@ -107,7 +107,7 @@ def normalize_min_max(data, min_value, max_value):
         return np.zeros_like(data)
     return (data - min_value) / (max_value - min_value)
 
-def process_profiles(input_folder, output_folder, stats):
+def process_profiles(input_folder, output_folder, stats, pressure_normalization_method):
     """Process and normalize all profiles in the input folder."""
     profile_files = [f for f in os.listdir(input_folder) if f.endswith(".json")]
 
@@ -195,17 +195,3 @@ def process_profiles(input_folder, output_folder, stats):
     print(f"✔ Processed and saved normalized profiles to {output_folder}")
 
 
-# Configuration
-pressure_normalization_method = 'min-max'  # Options: 'standard' or 'min-max'
-
-# Create the output directory if it doesn't exist
-input_folder = "Data/Profiles"
-output_folder = "Data/Normalized_Profiles"
-os.makedirs(output_folder, exist_ok=True)
-
-# Run the normalization process
-global_stats = calculate_global_stats(input_folder)
-
-# Process profiles with global stats
-if global_stats:
-    process_profiles(input_folder, output_folder, global_stats)
