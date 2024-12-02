@@ -32,8 +32,9 @@ def calculate_global_stats(input_folder, pressure_normalization_method):
         Tstar = profile["Tstar"]
 
         if Tstar == 0:
-            print(f"Skipping {profile_file}: Tstar is zero.")
-            continue
+            Tstar = 1e-10
+            #print(f"Skipping {profile_file}: Tstar is zero.")
+            #continue
 
         tstar_values.append(Tstar)
 
@@ -150,8 +151,9 @@ def process_profiles(input_folder, output_folder, stats, pressure_normalization_
         Tstar = profile["Tstar"]
 
         if Tstar == 0:
-            print(f"Skipping {profile_file}: Tstar is zero.")
-            continue
+            Tstar = 1e-10
+            #print(f"Skipping {profile_file}: Tstar is zero.")
+            #continue
 
         # Normalize Pressure
         log_pressures = np.log10(pressures)

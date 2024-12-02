@@ -21,7 +21,11 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
         config = json.load(f)
     
     # Pick your k tables and CIA species
-    datapath = config['datapath']
+    #datapath = config['datapath']
+    #print(datapath)
+    print("Using local path, not  specified path for opacities")
+    datapath = os.getcwd() + '/Data/Opacities/'
+
     k_table_files = config['k_table_files']
     cia_species = config['cia_species']
     
@@ -81,9 +85,9 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
     """    
 
 
-    
+    print("Not using TSTAR right now.")
     try:
-        if tstar == 0:
+        if tstar > -1:
             # Initialize atmosphere with all parameters
             # Right now its not using a stellar spectrum
             atm = xk.Atm(
