@@ -36,10 +36,7 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     cia_db = xk.CIAdatabase(molecules=cia_species, mks=True)
     cia_db.sample(k_db.wns)
     
-    # Infer species list from k_table_files and cia_species
-    species = list(k_table_files.keys()) + cia_species
-
-    return k_db, cia_db, species
+    return k_db, cia_db
 
 
 def set_stellar_spectrum(datapath, filename):
@@ -83,24 +80,42 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
     - atm (xk.Atm): Atmospheric model object with a data_dict attribute.
     """    
 
+
+    
     try:
-        # Initialize atmosphere with all parameters
-        # Right now its not using a stellar spectrum
-        atm = xk.Atm(
-            logplay=profile['logplay'],
-            tlay=profile['tlay'],
-            grav=grav,
-            Rp=Rp,
-            rcp=rcp,
-            albedo_surf=albedo_surf,
-            composition=profile['composition'],
-            #Tstar=tstar,
-            #stellar_spectrum=stellar_spectrum,
-            k_database=k_db,
-            cia_database=cia_db,
-            rayleigh=rayleigh
-        )
-        
+        if tstar == 0:
+            # Initialize atmosphere with all parameters
+            # Right now its not using a stellar spectrum
+            atm = xk.Atm(
+                logplay=profile['logplay'],
+                tlay=profile['tlay'],
+                grav=grav,
+                Rp=Rp,
+                rcp=rcp,
+                albedo_surf=albedo_surf,
+                composition=profile['composition'],
+                k_database=k_db,
+                cia_database=cia_db,
+                rayleigh=rayleigh
+            )
+        else:
+            # Initialize atmosphere with all parameters
+            # Right now its not using a stellar spectrum
+            atm = xk.Atm(
+                logplay=profile['logplay'],
+                tlay=profile['tlay'],
+                grav=grav,
+                Rp=Rp,
+                rcp=rcp,
+                albedo_surf=albedo_surf,
+                composition=profile['composition'],
+                Tstar=tstar,
+                #stellar_spectrum=stellar_spectrum,
+                k_database=k_db,
+                cia_database=cia_db,
+                rayleigh=rayleigh
+            )
+            
         # Compute opacity and emission properties
         atm.setup_emission_caculation()
 

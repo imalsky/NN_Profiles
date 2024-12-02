@@ -25,15 +25,14 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
 
     # Step 2: Initialize opacity databases
     print("\nInitializing Opacity Databases...")
-    k_db, cia_db, species = initialize_opacity_databases(config_file='Inputs/parameters.json')
-    #print("✔ Opacity databases initialized.")
+    k_db, cia_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
 
     # Step 3: Set the stellar spectrum
     #print("\n[3] Loading Stellar Spectrum...")
     #stellar_spectrum_file = config['model_params'].get('stellar_spectrum_file', 'stellar_spectra/default_spectrum.dat')
     #stellar_spectrum = set_stellar_spectrum(datapath=config['datapath'], filename=stellar_spectrum_file)
     #print(f"✔ Stellar spectrum loaded successfully.")
-    #print("\n[3] Using a Stellar Blackbody...")
+    print("\nUsing a Stellar Blackbody...")
 
     # Step 4: Generate and process PT profiles sequentially
     # Read N from the configuration
@@ -44,6 +43,7 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
         P=P,
         config_file='Inputs/parameters.json'
     )
+
 
     # Generate and process profiles one at a time
     successful_profiles = 0
@@ -70,7 +70,7 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
             Rp=Rp,
             rayleigh=config['model_params'].get('rayleigh', False),
             stellar_spectrum=None,
-            tstar=config['model_params'].get('Tstar', None)
+            tstar=profile.get('Tstar', None)
         )
         if atm is None:
             print(f"Skipping profile {successful_profiles + 1} due to errors.")
@@ -92,7 +92,7 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
         data_to_save = {
             "pressure": list(10**np.array(atm.data_dict['pressure'])),  # Assuming log10 pressures
             "temperature": list(atm.data_dict['temperature']),
-            "Tstar": config['model_params'].get('Tstar', None),
+            "Tstar": profile.get('Tstar', None),
             "net_flux": list(net_fluxes)
         }
         save_data(data_to_save, folder='Data/Profiles', base_filename='prof')

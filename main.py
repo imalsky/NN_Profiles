@@ -25,14 +25,12 @@ from utils import (
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 def main(gen_profiles_bool=False,
-         plot_profiles_bool=False,
          normalize_data_bool=False,
          create_rnn_model=False,
          epochs=100,
          nneur=(32, 32),
          batch_size=8,
          learning_rate=1e-4,
-         weight_decay=1e-4,
          include_Tstar=False,
          model_type='BasicRNN'):
     
@@ -206,14 +204,12 @@ if __name__ == "__main__":
     # RNN_New
     main(
         gen_profiles_bool=True,
-        plot_profiles_bool=True,
-        normalize_data_bool=True,
-        create_rnn_model=True,
+        normalize_data_bool=False,
+        create_rnn_model=False,
         epochs=200,
         nneur=(32, 32),
         batch_size=8,
         learning_rate=1e-4,
-        weight_decay=1e-4,
-        include_Tstar=False,
+        include_Tstar=True,
         model_type='RNN_New'
     )

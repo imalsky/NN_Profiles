@@ -7,27 +7,27 @@ class ProfileGenerator:
         Parameters:
         - N (int): Number of profiles to generate.
         - P (array): Pressure array in bar.
-        - config_file (str): Path to the JSON configuration file with priors and composition.
+        - config_file (str): Path to the JSON configuration file with variables and composition.
         """
         self.N = N              # Number of profiles to generate
         self.P = P              # Pressure array in bar
-        self.load_parameters(config_file)  # Load priors and composition from JSON config file
+        self.load_parameters(config_file)  # Load variables and composition from JSON config file
 
     def load_parameters(self, config_file):
-        """Load priors and fixed composition from a JSON configuration file."""
+        """Load variables and fixed composition from a JSON configuration file."""
         with open(config_file, 'r') as f:
             config = json.load(f)
-        self.priors = config['priors']
+        self.variables = config['variables']
 
         # Load fixed composition from JSON
         self.fixed_composition = config.get('composition', {})
 
     def sample_parameters(self):
-        """Sample parameters based on priors specified."""
+        """Sample parameters based on variables specified."""
         params = {}
         
-        # Sample main parameters based on priors
-        for key, prior in self.priors.items():
+        # Sample main parameters based on variables
+        for key, prior in self.variables.items():
             if prior['dist'] == 'normal':
                 value = np.random.normal(prior['mean'], prior['std'])
             elif prior['dist'] == 'uniform':
@@ -45,7 +45,7 @@ class ProfileGenerator:
             
             params[key] = value
             if key.startswith('log_'):
-                params[key[4:]] = np.exp(value)  # Convert log parameter to linear scale if needed
+                params[key[4:]] = 10 ** value  # Convert log parameter to linear scale if needed
 
         # Use the fixed composition from the configuration
         params['composition'] = self.fixed_composition
@@ -85,7 +85,8 @@ class ProfileGenerator:
             profile = {
                 'logplay': log_P,
                 'tlay': T_profile,
-                'composition': params['composition']
+                'composition': params['composition'],
+                'Tstar': params.get('Tstar', None)  # Include Tstar if available
             }
 
             return profile
