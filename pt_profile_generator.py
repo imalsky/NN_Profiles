@@ -78,24 +78,27 @@ class ProfileGenerator:
         delta = params.get('delta')
         gamma = params.get('gamma')
         T_int = params.get('T_int')
-        T_eq  = params.get('T_eq')
-        T_irr = T_eq * (2.0 ** 0.5)
+        T_irr = params.get('T_irr')
         P_trans = params.get('P_trans')
         alpha = params.get('alpha')
         mu = params['mu']
+        albedo = params['albedo_surf']
 
         T_Guillot4 = (
                      (3 * T_int**4 / 4) * (2/3 + delta * P) +
                      (3 * T_irr**4 * mu / 4) * (2/3 + (mu/gamma) + (gamma / (3 * mu) - (mu/gamma)) * np.exp(-gamma * delta * P / mu))
                      )
+
+
         T_Guillot = T_Guillot4**0.25
         T_final = T_Guillot * (1 - alpha / (1 + P / P_trans))
 
-        orbital_sep = params['Tstar'] ** 2 * params['stellar_radius'] / (T_irr ** 2)
-        flux_surface_down = mu * 5.6703e-8 * T_irr ** 4.0
+        # Casting the orbital sep as an int gets rid of some floating point precision problems
+        orbital_sep = int(params['Tstar'] ** 2 * params['stellar_radius'] / (T_irr ** 2))
+        flux_surface_down = (mu * 5.6703e-8 * T_irr ** 4.0) * (1 - albedo)
 
         return T_final, orbital_sep, flux_surface_down
-    
+
 
     def generate_single_profile(self):
         """

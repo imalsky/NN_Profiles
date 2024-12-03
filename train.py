@@ -5,8 +5,9 @@ import torch.nn as nn
 import os
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
+
 def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler,
-               num_epochs=100, early_stopping_patience=10, device='cpu', save_path='Data/Model'):
+                num_epochs=100, early_stopping_patience=10, device='cpu', save_path='Data/Model'):
     """
     Train the RNN model with a learning rate scheduler.
 
@@ -70,8 +71,9 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), os.path.join(save_path, "best_model.pth"))
-            #print(f"Best model saved with Val Loss: {best_val_loss:.3e}")
+            torch.save(model.state_dict(), os.path.join(
+                save_path, "best_model.pth"))
+            # print(f"Best model saved with Val Loss: {best_val_loss:.3e}")
         else:
             patience_counter += 1
             if patience_counter >= early_stopping_patience:
@@ -79,6 +81,7 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
                 break
 
     return best_val_loss
+
 
 def evaluate_model(model, data_loader, criterion, device):
     """

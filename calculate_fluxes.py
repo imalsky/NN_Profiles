@@ -26,11 +26,9 @@ def calculate_heating_rates_and_fluxes(atm, wl_range, rayleigh):
         # Heating rates are not used
         # I prefer to use only fluxes
         heat_rates, net_fluxes = atm.heating_rate()
-        
+
         return heat_rates, net_fluxes, TOA_flux
 
     except Exception as e:
         print(f"Error calculating heating rates and fluxes: {e}")
         return None, None, None
-
-

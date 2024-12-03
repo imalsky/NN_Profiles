@@ -14,6 +14,7 @@ from utils import (
     save_data
 )
 
+
 def gen_profiles(config, P):
     print("\n" + "=" * 70)
     print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
@@ -25,7 +26,8 @@ def gen_profiles(config, P):
 
     # Step 2: Initialize opacity databases
     print("\nInitializing Opacity Databases...")
-    k_db, cia_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
+    k_db, cia_db = initialize_opacity_databases(
+        config_file='Inputs/parameters.json')
 
     # Step 3: Set the stellar spectrum
     print("\nUsing a Stellar Blackbody...")
@@ -33,10 +35,7 @@ def gen_profiles(config, P):
     # Step 4: Generate and process PT profiles sequentially
 
     # Initialize the ProfileGenerator
-    generator = ProfileGenerator(
-        P=P,
-        config_file='Inputs/parameters.json'
-    )
+    generator = ProfileGenerator(P=P, config_file='Inputs/parameters.json')
 
     # Generate and process profiles one at a time
     successful_profiles = 0
@@ -56,7 +55,7 @@ def gen_profiles(config, P):
             profile=profile,
             k_db=k_db,
             cia_db=cia_db,
-            grav= profile.get('grav', 10.0),
+            grav=profile.get('grav', 10.0),
             rcp=profile.get('rcp', 0.28),
             albedo_surf=profile.get('albedo_surf', 0.0),
             Rp=profile.get('Rp', 7e6),
@@ -72,7 +71,8 @@ def gen_profiles(config, P):
         # Step 6: Calculate heating rates and fluxes
         heat_rates, net_fluxes, TOA_flux = calculate_heating_rates_and_fluxes(
             atm,
-            wl_range=config.get('opacity_params', {}).get('wavelength_range', [0.3, 50.0]),
+            wl_range=config.get('opacity_params', {}).get(
+                'wavelength_range', [0.3, 50.0]),
             rayleigh=config.get('opacity_params', {}).get('rayleigh', False)
         )
         if heat_rates is None:
@@ -82,7 +82,8 @@ def gen_profiles(config, P):
 
         # Step 7: Save data for the current profile
         data_to_save = {
-            "pressure": list(10**np.array(atm.data_dict['pressure'])),  # Assuming log10 pressures
+            # Assuming log10 pressures
+            "pressure": list(10**np.array(atm.data_dict['pressure'])),
             "temperature": list(atm.data_dict['temperature']),
             "Tstar": profile.get('Tstar', None),
             "net_flux": list(net_fluxes),

@@ -15,6 +15,7 @@ from create_training import gen_profiles
 from normalize import calculate_global_stats, process_profiles
 import warnings
 
+
 from utils import (
     load_config,
     create_directories,
@@ -24,6 +25,7 @@ from utils import (
 # Suppress future warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+
 def main(gen_profiles_bool=False,
          normalize_data_bool=False,
          create_rnn_model=False,
@@ -31,37 +33,58 @@ def main(gen_profiles_bool=False,
          nneur=(32, 32),
          batch_size=8,
          learning_rate=1e-4,
-         include_Tstar=False,
+         input_variables=None,
+         target_variable='heating_rate',
          model_type='BasicRNN'):
-    
+    """
+    Main function to generate profiles, normalize data, and train the RNN model.
+
+    Parameters:
+        gen_profiles_bool (bool): If True, generate training profiles.
+        normalize_data_bool (bool): If True, normalize the data.
+        create_rnn_model (bool): If True, create and train the RNN model.
+        epochs (int): Number of training epochs.
+        nneur (tuple): Number of neurons in each RNN layer.
+        batch_size (int): Batch size for training.
+        learning_rate (float): Learning rate for the optimizer.
+        input_variables (list of str): List of input variable names.
+        target_variable (str): Name of the target variable to predict.
+        model_type (str): Type of RNN model to use ('BasicRNN' or 'RNN_New').
+    """
+
+    if input_variables is None:
+        input_variables = ['pressure', 'temperature']  # Default input variables
+
+    # Load the run params
+    config = load_config(config_file='Inputs/parameters.json')
+    nlev = config['pressure_range']['points']
+
     # Generate the training set
     if gen_profiles_bool:
-        # Load configuration
-        config = load_config(config_file='Inputs/parameters.json')  # Specify the config file path if necessary
-
         # Ensure required directories exist
         create_directories('Inputs', 'Data', 'Figures')
 
         # Generate the pressure array
         pressure_range = config['pressure_range']
-        P = np.logspace(
-            np.log10(pressure_range['min']),
-            np.log10(pressure_range['max']),
-            num=pressure_range['points']
-        )
+        P = np.logspace(np.log10(pressure_range['min']), np.log10(pressure_range['max']), num=pressure_range['points'])
 
         # Generate profiles
         gen_profiles(config, P)
 
-
     if normalize_data_bool:
-        # Configuration
         pressure_normalization_method = 'min-max'  # Options: 'standard' or 'min-max'
 
         # Create the output directory if it doesn't exist
         input_folder = "Data/Profiles"
         output_folder = "Data/Normalized_Profiles"
         os.makedirs(output_folder, exist_ok=True)
+
+        # Delete existing files in the output directory
+        for file in os.listdir(output_folder):
+            file_path = os.path.join(output_folder, file)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        print("Deleted previous Normalized Profiles")
 
         # Run the normalization process
         global_stats = calculate_global_stats(input_folder, pressure_normalization_method)
@@ -84,10 +107,9 @@ def main(gen_profiles_bool=False,
             os.remove(best_model_path)
             print(f"Removed existing model checkpoint at {best_model_path}")
 
-        profile_files = [
-            f for f in os.listdir(data_folder)
-            if f.endswith(".json") and f != "normalization_metadata.json"
-        ]
+        # There's a metadata file there that needs to be ignored
+        profile_files = [f for f in os.listdir(data_folder)if f.endswith(".json") and f != "normalization_metadata.json"]
+
         if not profile_files:
             raise ValueError("No profiles found in the specified data folder.")
 
@@ -96,8 +118,15 @@ def main(gen_profiles_bool=False,
         with open(first_profile_path, "r") as f:
             first_profile = json.load(f)
 
-        expected_length = len(first_profile["temperature"])
-        dataset = NormalizedProfilesDataset(data_folder, expected_length, include_Tstar=include_Tstar)
+        # Check that the input length is good
+        expected_length = nlev
+        if len(first_profile["temperature"]) != expected_length:
+            raise ValueError("Something is wrong with the levels of the model")
+
+        dataset = NormalizedProfilesDataset(data_folder,
+                                            expected_length,
+                                            input_variables=input_variables,
+                                            target_variable=target_variable)
 
         # Split dataset into training, validation, and test sets
         train_size = int(0.7 * len(dataset))
@@ -108,15 +137,27 @@ def main(gen_profiles_bool=False,
             generator=torch.Generator().manual_seed(42)  # For reproducibility
         )
 
-        # Determine input features
-        input_features = 2  # Pressure and Temperature are always included
-        if include_Tstar:
-            input_features += 1
+        # Determine input features dynamically
+        input_features = len(input_variables)
+
+
+        pressure_index = None
+        # Check if 'pressure' is included in input_variables for RNN_New
+        if model_type == 'RNN_New':
+            if 'pressure' in input_variables:
+                pressure_index = input_variables.index('pressure')
+            else:
+                raise ValueError("RNN_New model requires 'pressure' as one of the input variables.")
 
         print(f"Using parameters: Epochs={epochs}, Batch size={batch_size}, Hidden layers={nneur}, Learning rate={learning_rate}")
+        print(f"Input Variables: {input_variables}")
+        print(f"Target Variable: {target_variable}")
 
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+        # Create DataLoaders
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(
+            val_dataset, batch_size=batch_size, shuffle=False)
 
         # Initialize model
         if model_type == 'BasicRNN':
@@ -136,7 +177,8 @@ def main(gen_profiles_bool=False,
                 ny=1,
                 nneur=nneur,
                 outputs_one_longer=False,
-                concat=False
+                concat=False,
+                pressure_index=pressure_index
             )
         else:
             raise ValueError(f"Unknown model type: {model_type}")
@@ -145,17 +187,23 @@ def main(gen_profiles_bool=False,
         criterion = nn.MSELoss()
 
         # Initialize optimizer and scheduler
-        #optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-        optimizer = optim.Adam(model.parameters())
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
         scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=5)
 
         print("Starting Training...")
 
         # Train the model
-        train_model(
-            model, train_loader, val_loader, optimizer, criterion, scheduler,
-            num_epochs=epochs, early_stopping_patience=10, device=device, save_path=model_save_path
-        )
+        train_model(model,
+                    train_loader,
+                    val_loader,
+                    optimizer,
+                    criterion,
+                    scheduler,
+                    num_epochs=epochs,
+                    early_stopping_patience=10,
+                    device=device,
+                    save_path=model_save_path
+                    )
 
         # Save model parameters to JSON file
         model_params = {
@@ -170,11 +218,13 @@ def main(gen_profiles_bool=False,
             'batch_size': batch_size,
             'learning_rate': learning_rate,
             'epochs': epochs,
-            'include_Tstar': include_Tstar
+            'input_variables': input_variables,
+            'target_variable': target_variable
         }
 
         # Save model parameters to JSON
         model_params_path = os.path.join(model_save_path, 'model_parameters.json')
+
         with open(model_params_path, 'w') as f:
             json.dump(model_params, f, indent=4)
         print(f"Model parameters saved to {model_params_path}")
@@ -189,22 +239,17 @@ def main(gen_profiles_bool=False,
         test_loss = evaluate_model(model, test_loader, criterion, device)
         print(f"Test Loss: {test_loss:.3e}")
 
-    else:
-        pass
-
 if __name__ == "__main__":
-    # You can adjust these parameters as needed
-    # Models are:
-    # BasicRNN
-    # RNN_New
+    # Adjust parameters as needed
     main(
         gen_profiles_bool=False,
-        normalize_data_bool=True,
-        create_rnn_model=False,
+        normalize_data_bool=False,
+        create_rnn_model=True,
         epochs=200,
         nneur=(32, 32),
         batch_size=8,
         learning_rate=1e-4,
-        include_Tstar=False,
-        model_type='RNN_New'
+        input_variables=['pressure', 'temperature', 'Tstar', 'orbital_sep', 'flux_surface_down'],  # Example variables
+        target_variable='net_flux',  # The variable you want to predict
+        model_type='RNN_New'  # Or 'BasicRNN'
     )

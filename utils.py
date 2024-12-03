@@ -24,7 +24,8 @@ def sample_constant_or_distribution(param_config):
     elif param_config['dist'] == 'normal':
         return np.random.normal(param_config['mean'], param_config['std'])
     else:
-        raise ValueError(f"Unsupported distribution type: {param_config['dist']}")
+        raise ValueError(f"Unsupported distribution type: {
+                         param_config['dist']}")
 
 
 def delete_old_profiles(folder='Data/Profiles', base_filename='prof'):
@@ -45,7 +46,7 @@ def delete_old_profiles(folder='Data/Profiles', base_filename='prof'):
             os.remove(os.path.join(folder, file))
             deleted_files += 1
 
-    #print(f"Deleted {deleted_files} old profile(s) in '{folder}'.")
+    # print(f"Deleted {deleted_files} old profile(s) in '{folder}'.")
 
 
 def save_data(data, folder='Data/Profiles', base_filename='profile_'):
@@ -60,8 +61,10 @@ def save_data(data, folder='Data/Profiles', base_filename='profile_'):
     os.makedirs(folder, exist_ok=True)
 
     # Find the next available index
-    existing_files = [f for f in os.listdir(folder) if f.startswith(base_filename) and f.endswith('.json')]
-    indices = [int(f.split('_')[-1].split('.')[0]) for f in existing_files if '_' in f and f.split('_')[-1].split('.')[0].isdigit()]
+    existing_files = [f for f in os.listdir(folder) if f.startswith(
+        base_filename) and f.endswith('.json')]
+    indices = [int(f.split('_')[-1].split('.')[0])
+               for f in existing_files if '_' in f and f.split('_')[-1].split('.')[0].isdigit()]
     next_index = max(indices) + 1 if indices else 1
 
     # Construct unique filename
@@ -71,9 +74,12 @@ def save_data(data, folder='Data/Profiles', base_filename='profile_'):
         json.dump(data, f, indent=4)
 
 # Load normalization metadata
+
+
 def load_normalization_metadata(metadata_path="Data/Normalized_Profiles/normalization_metadata.json"):
     if not os.path.exists(metadata_path):
-        raise FileNotFoundError(f"Normalization metadata not found at {metadata_path}")
+        raise FileNotFoundError(
+            f"Normalization metadata not found at {metadata_path}")
 
     with open(metadata_path, 'r') as f:
         normalization_metadata = json.load(f)
