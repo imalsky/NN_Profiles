@@ -12,45 +12,41 @@ NN_Profiles is a Python-based pipeline for training and evaluating physics-infor
 ## File Structure
 
 
-NN_Profiles/
-│
-├── Data/
-│   ├── Profiles/               # Raw input profiles in JSON format.
-│   ├── Normalized_Profiles/    # Preprocessed and normalized profiles.
-│   ├── Model/                  # Directory for saving trained models.
-│
-├── Figures/                    # Directory for saving prediction plots.
-│
-├── Inputs/                     # Input configuration files for simulation parameters.
-│   ├── parameters.json         # Configuration file with planet and simulation parameters.
-│
-├── Scripts/                    # Optional: Collection of helper or standalone scripts.
-├── create_training.py          # Script to generate training datasets.
-├── pt_profile_generator.py     # Script for generating PT profiles.
-├── calculate_fluxes.py         # Functions for computing heating rates and fluxes.
-├── calculate_opacities.py      # Functions for generating opacity data.
-├── normalize.py                # Script for preprocessing and normalizing the data.
-│
-├── main.py                     # Main pipeline for training, testing, and visualization.
-├── models.py                   # Defines the RNN architectures and other models.
-├── dataset.py                  # Dataset and DataLoader definitions.
-├── train.py                    # Training routines for the models.
-├── visualize.py                # Visualization utilities for predictions and performance.
-├── visualize.ipynb                # Visualization utilities for predictions and performance.
-
-├── utils.py                    # Utility functions for loading metadata and auxiliary tasks.
-├── sbatch_job
-└── README.md                   # Documentation for the project.
-
-
-
+    NNN_Profiles
+    ├── Data/                       # Ignored on github (big files)
+    │   ├── Profiles/               # Raw input profiles in JSON format.
+    │   ├── Normalized_Profiles/    # Preprocessed and normalized profiles.
+    │   ├── Model/                  # Directory for saving trained models.
+    │   ├── Opacities               # Dir with the different opacities used in the model training
+    │
+    ├── Figures/                    # Directory for saving prediction plots (Ignored).
+    │
+    ├── Inputs/                     # Input configuration files for simulation parameters.
+    │   ├── parameters.json         # Configuration file with planet and simulation parameters.
+    │
+    │
+    ├── calculate_fluxes.py          # Functions for computing heating rates and fluxes. 
+    ├── calculate_opacities.py       # Functions for generating opacity data.
+    ├── create_training.py           # Script to generate training datasets.
+    ├── dataset.py                   # Dataset and DataLoader definitions.
+    ├── main.py                      # Main pipeline for training, testing, and visualization.
+    ├── models.py                    # Defines the RNN architectures and other models.
+    ├── normalize.py                 # Script for preprocessing and normalizing the data.
+    ├── plot_atm_structure.ipynb     # Visualization atmospheres
+    ├── plot_model_predictions.ipynb # Jupyter Notebook for visualization.
+    ├── pt_profile_generator.py      # Script for generating PT profiles.
+    ├── README.md                    # Documentation for the project.
+    ├── run_sbatch_gattaca.sh        # Sbatch CPU command Gattaca
+    ├── run_sbatch_gattaca.sh        # Sbatch GPU command Gattaca 
+    ├── train.py                     # Training routines for the models.
+    └── utils.py                     # Utility functions for loading metadata and auxiliary tasks.
 
 ## Workflow
 
 ### 1. Data Preparation
 
 Create initial profiles with python training.py. This will create TP profiles randomly drawn with a 6 parameter structure.
-Currently this always has a fixed planet radius, composition, and many other params. Eventually these params should be varied, and saved as well to be trained on.
+This always has a fixed planet radius, composition, and many other params. Eventually these params should be varied, and saved as well to be trained on.
 Raw profiles should be placed in the `Data/Profiles` directory as JSON files. Each profile must contain:
 - `pressure`: Array of pressure values.
 - `temperature`: Array of temperature values.

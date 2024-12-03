@@ -14,7 +14,7 @@ from utils import (
     save_data
 )
 
-def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
+def gen_profiles(config, P):
     print("\n" + "=" * 70)
     print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
     print("=" * 70)
@@ -28,31 +28,23 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
     k_db, cia_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
 
     # Step 3: Set the stellar spectrum
-    #print("\n[3] Loading Stellar Spectrum...")
-    #stellar_spectrum_file = config['model_params'].get('stellar_spectrum_file', 'stellar_spectra/default_spectrum.dat')
-    #stellar_spectrum = set_stellar_spectrum(datapath=config['datapath'], filename=stellar_spectrum_file)
-    #print(f"✔ Stellar spectrum loaded successfully.")
     print("\nUsing a Stellar Blackbody...")
 
     # Step 4: Generate and process PT profiles sequentially
-    # Read N from the configuration
-    N_profiles = config.get('simulation_params', {}).get('N', 10)  # Default to 10 if not specified
 
+    # Initialize the ProfileGenerator
     generator = ProfileGenerator(
-        N=N_profiles,  # Use N from the configuration
         P=P,
         config_file='Inputs/parameters.json'
     )
 
-
     # Generate and process profiles one at a time
     successful_profiles = 0
-    max_attempts = generator.N * 2  # To prevent infinite loops
+    max_attempts = generator.number_of_simulations * 2  # To prevent infinite loops
     attempts = 0
 
-    #print()
     print("\nCalculating the Profiles...")
-    while successful_profiles < generator.N and attempts < max_attempts:
+    while successful_profiles < generator.number_of_simulations and attempts < max_attempts:
         profile = generator.generate_single_profile()
         if profile is None:
             print("Failed to generate a valid profile, trying again...")
@@ -64,13 +56,13 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
             profile=profile,
             k_db=k_db,
             cia_db=cia_db,
-            grav=grav,
-            rcp=rcp,
-            albedo_surf=albedo_surf,
-            Rp=Rp,
-            rayleigh=config['model_params'].get('rayleigh', False),
-            stellar_spectrum=None,
-            tstar=profile.get('Tstar', None)
+            grav= profile.get('grav', 10.0),
+            rcp=profile.get('rcp', 0.28),
+            albedo_surf=profile.get('albedo_surf', 0.0),
+            Rp=profile.get('Rp', 7e6),
+            rayleigh=config.get('opacity_params', {}).get('rayleigh', False),
+            tstar=profile.get('Tstar', None),
+            flux_top_dw=profile.get('flux_surface_down', None)
         )
         if atm is None:
             print(f"Skipping profile {successful_profiles + 1} due to errors.")
@@ -80,8 +72,8 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
         # Step 6: Calculate heating rates and fluxes
         heat_rates, net_fluxes, TOA_flux = calculate_heating_rates_and_fluxes(
             atm,
-            wl_range=config['model_params'].get('wavelength_range', [0.3, 50.0]),
-            rayleigh=config['model_params'].get('rayleigh', False)
+            wl_range=config.get('opacity_params', {}).get('wavelength_range', [0.3, 50.0]),
+            rayleigh=config.get('opacity_params', {}).get('rayleigh', False)
         )
         if heat_rates is None:
             print(f"Skipping profile {successful_profiles + 1} due to errors in heating rate calculations.")
@@ -93,7 +85,10 @@ def gen_profiles(config, P, grav, rcp, albedo_surf, Rp):
             "pressure": list(10**np.array(atm.data_dict['pressure'])),  # Assuming log10 pressures
             "temperature": list(atm.data_dict['temperature']),
             "Tstar": profile.get('Tstar', None),
-            "net_flux": list(net_fluxes)
+            "net_flux": list(net_fluxes),
+            "heating_rate": list(heat_rates),
+            "orbital_sep": profile.get('orbital_sep', None),
+            "flux_surface_down": profile.get('flux_surface_down', None),
         }
         save_data(data_to_save, folder='Data/Profiles', base_filename='prof')
 

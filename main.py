@@ -50,13 +50,8 @@ def main(gen_profiles_bool=False,
             num=pressure_range['points']
         )
 
-        # Sample planet parameters
-        grav = sample_constant_or_distribution(config['planet_params']['grav'])
-        rcp = sample_constant_or_distribution(config['planet_params']['rcp'])
-        albedo_surf = sample_constant_or_distribution(config['planet_params']['albedo_surf'])
-        Rp = sample_constant_or_distribution(config['planet_params']['Rp'])
-
-        gen_profiles(config, P, grav, rcp, albedo_surf, Rp)
+        # Generate profiles
+        gen_profiles(config, P)
 
 
     if normalize_data_bool:

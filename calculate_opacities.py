@@ -43,28 +43,10 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     return k_db, cia_db
 
 
-def set_stellar_spectrum(datapath, filename):
-    """
-    Set the stellar spectrum.
-
-    Parameters:
-    - datapath (str): Path to the data directory.
-    - filename (str): Filename of the stellar spectrum file.
-
-    Returns:
-    - stellar_spectrum (xk.Spectrum): Stellar spectrum object.
-    """
-    spectrum_path = os.path.join(datapath, filename)
-    stellar_spectrum = xk.Spectrum(
-        filename=spectrum_path,
-        spectral_radiance=True,
-        input_spectral_unit='nm'
-    )
-
-    return stellar_spectrum
 
 
-def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh=False, stellar_spectrum=None, tstar=None):
+
+def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh, tstar, flux_top_dw):
     """
     Calculate opacity structure for a single atmospheric profile.
 
@@ -82,44 +64,37 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
 
     Returns:
     - atm (xk.Atm): Atmospheric model object with a data_dict attribute.
-    """    
+    """
 
+    #print(list(profile['logplay']))
+    #print(list(profile['tlay']))
+    #print(grav)
+    #print(Rp)
+    #print(rcp)
+    #print(albedo_surf)
+    #print(tstar)
+    #print(flux_top_dw)
+    #print(rayleigh)
+    #exit()
 
-    print("Not using TSTAR right now.")
     try:
-        if tstar > -1:
-            # Initialize atmosphere with all parameters
-            # Right now its not using a stellar spectrum
-            atm = xk.Atm(
-                logplay=profile['logplay'],
-                tlay=profile['tlay'],
-                grav=grav,
-                Rp=Rp,
-                rcp=rcp,
-                albedo_surf=albedo_surf,
-                composition=profile['composition'],
-                k_database=k_db,
-                cia_database=cia_db,
-                rayleigh=rayleigh
-            )
-        else:
-            # Initialize atmosphere with all parameters
-            # Right now its not using a stellar spectrum
-            atm = xk.Atm(
-                logplay=profile['logplay'],
-                tlay=profile['tlay'],
-                grav=grav,
-                Rp=Rp,
-                rcp=rcp,
-                albedo_surf=albedo_surf,
-                composition=profile['composition'],
-                Tstar=tstar,
-                #stellar_spectrum=stellar_spectrum,
-                k_database=k_db,
-                cia_database=cia_db,
-                rayleigh=rayleigh
-            )
-            
+        # Initialize atmosphere with all parameters
+        # This needs to convert from bar to pa in log
+        atm = xk.Atm(
+            logplay=profile['logplay'] + 5,
+            tlay=profile['tlay'],
+            grav=grav,
+            Rp=Rp,
+            rcp=rcp,
+            albedo_surf=albedo_surf,
+            composition=profile['composition'],
+            Tstar=tstar,
+            flux_top_dw=flux_top_dw,
+            k_database=k_db,
+            cia_database=cia_db,
+            rayleigh=rayleigh
+        )
+        
         # Compute opacity and emission properties
         atm.setup_emission_caculation()
 
