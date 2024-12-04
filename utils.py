@@ -24,8 +24,7 @@ def sample_constant_or_distribution(param_config):
     elif param_config['dist'] == 'normal':
         return np.random.normal(param_config['mean'], param_config['std'])
     else:
-        raise ValueError(f"Unsupported distribution type: {
-                         param_config['dist']}")
+        raise ValueError(f"Unsupported distribution type: {param_config['dist']}")
 
 
 def delete_old_profiles(folder='Data/Profiles', base_filename='prof'):

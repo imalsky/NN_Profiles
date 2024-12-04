@@ -69,12 +69,10 @@ def gen_profiles(config, P):
             continue
 
         # Step 6: Calculate heating rates and fluxes
-        heat_rates, net_fluxes, TOA_flux = calculate_heating_rates_and_fluxes(
+        heat_rates, net_fluxes, TOA_flux, flux_up, flux_down= calculate_heating_rates_and_fluxes(
             atm,
-            wl_range=config.get('opacity_params', {}).get(
-                'wavelength_range', [0.3, 50.0]),
-            rayleigh=config.get('opacity_params', {}).get('rayleigh', False)
-        )
+            wl_range=config.get('opacity_params', {}).get('wavelength_range', [0.3, 50.0]),
+            rayleigh=config.get('opacity_params', {}).get('rayleigh', False))
         if heat_rates is None:
             print(f"Skipping profile {successful_profiles + 1} due to errors in heating rate calculations.")
             attempts += 1
@@ -87,6 +85,8 @@ def gen_profiles(config, P):
             "temperature": list(atm.data_dict['temperature']),
             "Tstar": profile.get('Tstar', None),
             "net_flux": list(net_fluxes),
+            "flux_up": list(flux_up),
+            "flux_down": list(flux_down),
             "heating_rate": list(heat_rates),
             "orbital_sep": profile.get('orbital_sep', None),
             "flux_surface_down": profile.get('flux_surface_down', None),

@@ -14,7 +14,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from create_training import gen_profiles
 from normalize import calculate_global_stats, process_profiles
 import warnings
-
+import random
 
 from utils import (
     load_config,
@@ -108,7 +108,12 @@ def main(gen_profiles_bool=False,
             print(f"Removed existing model checkpoint at {best_model_path}")
 
         # There's a metadata file there that needs to be ignored
-        profile_files = [f for f in os.listdir(data_folder)if f.endswith(".json") and f != "normalization_metadata.json"]
+        profile_files_full = [f for f in os.listdir(data_folder)if f.endswith(".json") and f != "normalization_metadata.json"]
+
+        # Maybe you don't want to train on all the possible profiles?
+        num_profiles = int(len(profile_files_full)/1)
+        profile_files = random.sample(profile_files_full, num_profiles)
+        print("Training on", num_profiles, "Profiles")
 
         if not profile_files:
             raise ValueError("No profiles found in the specified data folder.")
@@ -243,8 +248,8 @@ if __name__ == "__main__":
     # Adjust parameters as needed
     main(
         gen_profiles_bool=False,
-        normalize_data_bool=False,
-        create_rnn_model=True,
+        normalize_data_bool=True,
+        create_rnn_model=False,
         epochs=200,
         nneur=(32, 32),
         batch_size=8,
