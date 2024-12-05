@@ -34,7 +34,7 @@ def main(gen_profiles_bool=False,
          batch_size=8,
          learning_rate=1e-4,
          input_variables=None,
-         target_variable='heating_rate',
+         target_variables=None,
          model_type='BasicRNN'):
     """
     Main function to generate profiles, normalize data, and train the RNN model.
@@ -48,12 +48,15 @@ def main(gen_profiles_bool=False,
         batch_size (int): Batch size for training.
         learning_rate (float): Learning rate for the optimizer.
         input_variables (list of str): List of input variable names.
-        target_variable (str): Name of the target variable to predict.
+        target_variables (list of str): List of target variable names to predict.
         model_type (str): Type of RNN model to use ('BasicRNN' or 'RNN_New').
     """
 
     if input_variables is None:
         input_variables = ['pressure', 'temperature']  # Default input variables
+
+    if target_variables is None:
+        target_variables = ['heating_rate']  # Default target variables
 
     # Load the run params
     config = load_config(config_file='Inputs/parameters.json')
@@ -93,7 +96,6 @@ def main(gen_profiles_bool=False,
         if global_stats:
             process_profiles(input_folder, output_folder, global_stats, pressure_normalization_method)
 
-
     # Create the RNN from the training set
     if create_rnn_model:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -107,11 +109,9 @@ def main(gen_profiles_bool=False,
             os.remove(best_model_path)
             print(f"Removed existing model checkpoint at {best_model_path}")
 
-        # There's a metadata file there that needs to be ignored
-        profile_files_full = [f for f in os.listdir(data_folder)if f.endswith(".json") and f != "normalization_metadata.json"]
-
-        # Maybe you don't want to train on all the possible profiles?
-        num_profiles = int(len(profile_files_full)/1)
+        # Load profiles
+        profile_files_full = [f for f in os.listdir(data_folder) if f.endswith(".json") and f != "normalization_metadata.json"]
+        num_profiles = int(len(profile_files_full) / 1)
         profile_files = random.sample(profile_files_full, num_profiles)
         print("Training on", num_profiles, "Profiles")
 
@@ -123,7 +123,6 @@ def main(gen_profiles_bool=False,
         with open(first_profile_path, "r") as f:
             first_profile = json.load(f)
 
-        # Check that the input length is good
         expected_length = nlev
         if len(first_profile["temperature"]) != expected_length:
             raise ValueError("Something is wrong with the levels of the model")
@@ -131,7 +130,7 @@ def main(gen_profiles_bool=False,
         dataset = NormalizedProfilesDataset(data_folder,
                                             expected_length,
                                             input_variables=input_variables,
-                                            target_variable=target_variable)
+                                            target_variables=target_variables)
 
         # Split dataset into training, validation, and test sets
         train_size = int(0.7 * len(dataset))
@@ -144,32 +143,22 @@ def main(gen_profiles_bool=False,
 
         # Determine input features dynamically
         input_features = len(input_variables)
-
-
-        pressure_index = None
-        # Check if 'pressure' is included in input_variables for RNN_New
-        if model_type == 'RNN_New':
-            if 'pressure' in input_variables:
-                pressure_index = input_variables.index('pressure')
-            else:
-                raise ValueError("RNN_New model requires 'pressure' as one of the input variables.")
+        target_features = len(target_variables)
 
         print(f"Using parameters: Epochs={epochs}, Batch size={batch_size}, Hidden layers={nneur}, Learning rate={learning_rate}")
         print(f"Input Variables: {input_variables}")
-        print(f"Target Variable: {target_variable}")
+        print(f"Target Variables: {target_variables}")
 
         # Create DataLoaders
-        train_loader = DataLoader(
-            train_dataset, batch_size=batch_size, shuffle=True)
-        val_loader = DataLoader(
-            val_dataset, batch_size=batch_size, shuffle=False)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
         # Initialize model
         if model_type == 'BasicRNN':
             model = BasicRNN(
                 RNN_type='LSTM',
                 nx=input_features,
-                ny=1,
+                ny=target_features,
                 nx_sfc=0,
                 nneur=nneur,
                 outputs_one_longer=False,
@@ -179,11 +168,10 @@ def main(gen_profiles_bool=False,
             model = RNN_New(
                 RNN_type='LSTM',
                 nx=input_features,
-                ny=1,
+                ny=target_features,
                 nneur=nneur,
                 outputs_one_longer=False,
-                concat=False,
-                pressure_index=pressure_index
+                concat=False
             )
         else:
             raise ValueError(f"Unknown model type: {model_type}")
@@ -210,12 +198,12 @@ def main(gen_profiles_bool=False,
                     save_path=model_save_path
                     )
 
-        # Save model parameters to JSON file
+        # Save model parameters to JSON
         model_params = {
             'model_type': model_type,
             'RNN_type': 'LSTM',
             'nx': input_features,
-            'ny': 1,
+            'ny': target_features,
             'nx_sfc': 0,
             'nneur': nneur,
             'outputs_one_longer': False,
@@ -224,12 +212,10 @@ def main(gen_profiles_bool=False,
             'learning_rate': learning_rate,
             'epochs': epochs,
             'input_variables': input_variables,
-            'target_variable': target_variable
+            'target_variables': target_variables
         }
 
-        # Save model parameters to JSON
         model_params_path = os.path.join(model_save_path, 'model_parameters.json')
-
         with open(model_params_path, 'w') as f:
             json.dump(model_params, f, indent=4)
         print(f"Model parameters saved to {model_params_path}")
@@ -244,17 +230,18 @@ def main(gen_profiles_bool=False,
         test_loss = evaluate_model(model, test_loader, criterion, device)
         print(f"Test Loss: {test_loss:.3e}")
 
+
 if __name__ == "__main__":
-    # Adjust parameters as needed
     main(
-        gen_profiles_bool=False,
-        normalize_data_bool=True,
+        gen_profiles_bool=True,
+        normalize_data_bool=False,
         create_rnn_model=False,
-        epochs=200,
+        epochs=500,
         nneur=(32, 32),
         batch_size=8,
         learning_rate=1e-4,
-        input_variables=['pressure', 'temperature', 'Tstar', 'orbital_sep', 'flux_surface_down'],  # Example variables
-        target_variable='net_flux',  # The variable you want to predict
-        model_type='RNN_New'  # Or 'BasicRNN'
+        input_variables=['pressure', 'temperature', 'Tstar', 'orbital_sep', 'flux_surface_down'],
+        #target_variables=['flux_up', 'flux_down'],  # Multiple targets
+        target_variables=['net_flux'],
+        model_type='RNN_New'
     )

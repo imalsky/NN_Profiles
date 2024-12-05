@@ -37,8 +37,7 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     xk.Settings().set_search_path(os.path.join(datapath, 'cia'), path_type='cia')
 
     # Initialize databases
-    k_db = xk.Kdatabase({species: os.path.join(datapath, path)
-                        for species, path in k_table_files.items()})
+    k_db = xk.Kdatabase({species: os.path.join(datapath, path) for species, path in k_table_files.items()})
     cia_db = xk.CIAdatabase(molecules=cia_species, mks=True)
     cia_db.sample(k_db.wns)
 
@@ -65,17 +64,6 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
     - atm (xk.Atm): Atmospheric model object with a data_dict attribute.
     """
 
-    # print(list(profile['logplay']))
-    # print(list(profile['tlay']))
-    # print(grav)
-    # print(Rp)
-    # print(rcp)
-    # print(albedo_surf)
-    # print(tstar)
-    # print(flux_top_dw)
-    # print(rayleigh)
-    # exit()
-
     try:
         # Initialize atmosphere with all parameters
         # This needs to convert from bar to pa in log
@@ -99,8 +87,8 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
 
         # Organize results into a data dictionary
         data_dict = {
-            'pressure': profile['logplay'],  # Using input profile's data
-            'temperature': profile['tlay'],  # Using input profile's data
+            'pressure': profile['logplay'],
+            'temperature': profile['tlay'],
         }
 
         # Attach the data dictionary to the atm object

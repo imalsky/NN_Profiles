@@ -1,5 +1,3 @@
-# dataset.py
-
 import os
 import json
 import torch
@@ -8,20 +6,21 @@ import numpy as np
 
 
 class NormalizedProfilesDataset(Dataset):
-    def __init__(self, data_folder, expected_length=None, input_variables=None, target_variable='net_flux'):
+    def __init__(self, data_folder, expected_length=None, input_variables=None, target_variables=None):
         """
         Initialize the dataset.
 
         Parameters:
             data_folder (str): Path to the folder containing JSON profile files.
             expected_length (int, optional): Expected length of the profiles. If None, no length filtering is applied.
-            input_variables (list of str, optional): List of variable names to be used as input features.
-            target_variable (str): Name of the variable to be used as the target.
+            input_variables (list of str): List of input variable names.
+            target_variables (list of str): List of target variable names.
         """
         self.data_folder = data_folder
         self.expected_length = expected_length
         self.input_variables = input_variables or ['pressure', 'temperature']
-        self.target_variable = target_variable
+        self.target_variables = target_variables or ['heating_rate']
+
         self.file_list = [
             os.path.join(data_folder, f)
             for f in os.listdir(data_folder)
@@ -43,17 +42,15 @@ class NormalizedProfilesDataset(Dataset):
         for file_path in self.file_list:
             with open(file_path, "r") as f:
                 profile = json.load(f)
-
-            # Check if all required variables are present
-            required_keys = set(self.input_variables + [self.target_variable])
+            required_keys = set(self.input_variables + self.target_variables)
             if all(key in profile for key in required_keys):
-                if self.expected_length is None or len(profile["pressure"]) == self.expected_length:
+                # Validate the length of sequence data
+                if self.expected_length is None or len(profile[self.input_variables[0]]) == self.expected_length:
                     valid_files.append(file_path)
                 else:
                     print(f"Skipping {file_path}: Incorrect profile length.")
             else:
-                missing_keys = required_keys - profile.keys()
-                print(f"Skipping {file_path}: Missing required keys {missing_keys}.")
+                print(f"Skipping {file_path}: Missing one of the required keys {required_keys}.")
         return valid_files
 
     def __len__(self):
@@ -69,39 +66,36 @@ class NormalizedProfilesDataset(Dataset):
         Returns:
             tuple: (inputs, targets)
                 - inputs (torch.Tensor): Tensor of shape (sequence_length, num_features).
-                - targets (torch.Tensor): Tensor of shape (sequence_length,).
+                - targets (torch.Tensor): Tensor of shape (sequence_length, num_target_features).
         """
         file_path = self.valid_files[idx]
         with open(file_path, "r") as f:
             profile = json.load(f)
 
         # Prepare input features
-        features = []
-        for var_name in self.input_variables:
-            var_data = profile[var_name]
-            if isinstance(var_data, list):
-                var_array = np.array(var_data)
-                if len(var_array) != self.expected_length:
-                    raise ValueError(f"Variable '{var_name}' in profile '{file_path}' has length {len(var_array)}, expected {self.expected_length}")
+        inputs = []
+        for var in self.input_variables:
+            if isinstance(profile[var], list):
+                inputs.append(profile[var])
             else:
-                # If scalar, expand to match expected_length
-                var_array = np.full(self.expected_length, var_data)
-            features.append(var_array)
+                # Handle scalar values by expanding them to match sequence length
+                inputs.append([profile[var]] * self.expected_length)
 
-        # Stack features to create (sequence_length, num_features)
-        inputs = np.stack(features, axis=1)
+        inputs = np.stack(inputs, axis=1)
 
-        # Get target variable
-        target_data = profile[self.target_variable]
-        if isinstance(target_data, list):
-            target = np.array(target_data)
-            if len(target) != self.expected_length:
-                raise ValueError(f"Target variable '{self.target_variable}' in profile '{file_path}' has length {len(target)}, expected {self.expected_length}")
-        else:
-            target = np.full(self.expected_length, target_data)
+        # Prepare target features
+        targets = []
+        for var in self.target_variables:
+            if isinstance(profile[var], list):
+                targets.append(profile[var])
+            else:
+                # Handle scalar values by expanding them to match sequence length
+                targets.append([profile[var]] * self.expected_length)
+
+        targets = np.stack(targets, axis=1)
 
         # Convert to torch tensors
         inputs = torch.tensor(inputs, dtype=torch.float32)
-        targets = torch.tensor(target, dtype=torch.float32)
+        targets = torch.tensor(targets, dtype=torch.float32)
 
         return inputs, targets

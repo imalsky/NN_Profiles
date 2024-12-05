@@ -19,11 +19,9 @@ def calculate_heating_rates_and_fluxes(atm, wl_range, rayleigh):
         TOA_flux = atm.emission_spectrum_2stream(integral=True,wl_range=wl_range,rayleigh=rayleigh)
         heat_rates, net_fluxes = atm.heating_rate()
 
-
         # Spectrally integrate upward and downward fluxes
         flux_up_integrated = atm.spectral_integration(atm.flux_up_nu)
         flux_down_integrated = atm.spectral_integration(atm.flux_down_nu)
-        #explicit_net_flux = flux_up_integrated - flux_down_integrated
 
         return heat_rates, net_fluxes, TOA_flux, flux_up_integrated, flux_down_integrated
 

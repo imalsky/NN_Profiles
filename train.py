@@ -73,7 +73,6 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
             patience_counter = 0
             torch.save(model.state_dict(), os.path.join(
                 save_path, "best_model.pth"))
-            # print(f"Best model saved with Val Loss: {best_val_loss:.3e}")
         else:
             patience_counter += 1
             if patience_counter >= early_stopping_patience:

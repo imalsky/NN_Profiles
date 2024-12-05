@@ -94,6 +94,19 @@ class BasicRNN(nn.Module):
         return out
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 class RNN_New(nn.Module):
     def __init__(self,
                  RNN_type='LSTM',

@@ -81,8 +81,14 @@ class ProfileGenerator:
         T_irr = params.get('T_irr')
         P_trans = params.get('P_trans')
         alpha = params.get('alpha')
-        mu = params['mu']
-        albedo = params['albedo_surf']
+        mu = params.get('mu')
+        mu = mu + 1e-8
+        Rstar = params.get('stellar_radius')
+        albedo = params.get('albedo_surf')
+        heat_redistribution = params.get('heat_redistribution')
+        Tstar = params.get('Tstar')
+
+        Line_2013_beta = ((1 - albedo) / heat_redistribution) ** (0.25)
 
         T_Guillot4 = (
                      (3 * T_int**4 / 4) * (2/3 + delta * P) +
@@ -94,8 +100,22 @@ class ProfileGenerator:
         T_final = T_Guillot * (1 - alpha / (1 + P / P_trans))
 
         # Casting the orbital sep as an int gets rid of some floating point precision problems
-        orbital_sep = int(params['Tstar'] ** 2 * params['stellar_radius'] / (T_irr ** 2))
-        flux_surface_down = (mu * 5.6703e-8 * T_irr ** 4.0) * (1 - albedo)
+        #orbital_sep = int(Tstar ** 2 * Rstar / (T_irr ** 2))
+        orbital_sep = (Rstar * Line_2013_beta ** 2 / 2) * (Tstar / T_irr) ** 2
+ 
+        # Check this, it doesn't matter a ton, but I'm not sure I'm getting my heat redistrubution right
+        flux_surface_down = (1 * 5.6703e-8 * T_irr ** 4.0) * (1 - albedo) / heat_redistribution
+        
+        #print(mu, albedo, heat_redistribution, mu * 5.67e-8 * T_irr ** 4 * 1)
+        #print(f'{5.67e-8 * T_irr ** 4:.3e}. Tirr: {T_irr:0.2e}')
+        #print(f'albedo: {albedo:.2e}, mu: {mu:.2e}, flux_down: {flux_surface_down:.2e}, f: {heat_redistribution:.2e}')
+
+
+        smoothing = True
+        if smoothing:
+            beta = 1.5
+            s = 0.5 * (1 + np.tanh(beta * (np.log10(P) - params.get('log_homogenous_zone'))))
+            T_final = T_final + (params.get('homogenous_temperature') - T_final) * s
 
         return T_final, orbital_sep, flux_surface_down
 
