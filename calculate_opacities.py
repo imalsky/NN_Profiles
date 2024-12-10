@@ -1,8 +1,6 @@
 import os
 import json
 import exo_k as xk
-import numpy as np
-
 
 def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     """
@@ -28,23 +26,26 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     datapath = os.getcwd() + '/Data/Opacities/'
 
     k_table_files = config['k_table_files']
-    cia_species = config['cia_species']
+    #cia_species = config['cia_species']
 
     # Set up paths in exo_k
     xk.Settings().set_mks(True)
-    xk.Settings().set_search_path(os.path.join(datapath, 'xsec'), path_type='xtable')
     xk.Settings().set_search_path(os.path.join(datapath, 'corrk'), path_type='ktable')
-    xk.Settings().set_search_path(os.path.join(datapath, 'cia'), path_type='cia')
+
+    # The mixed ktabl already has cia opacities built in
+    # xk.Settings().set_search_path(os.path.join(datapath, 'xsec'), path_type='xtable')
+    # xk.Settings().set_search_path(os.path.join(datapath, 'cia'), path_type='cia')
 
     # Initialize databases
     k_db = xk.Kdatabase({species: os.path.join(datapath, path) for species, path in k_table_files.items()})
-    cia_db = xk.CIAdatabase(molecules=cia_species, mks=True)
-    cia_db.sample(k_db.wns)
 
-    return k_db, cia_db
+    #cia_db = xk.CIAdatabase(molecules=cia_species, mks=True)
+    #cia_db.sample(k_db.wns)
+
+    return k_db
 
 
-def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, Rp, rayleigh, tstar, flux_top_dw):
+def calculate_opacity_structure(profile, k_db, grav, rcp, albedo_surf, Rp, rayleigh, tstar, flux_top_dw):
     """
     Calculate opacity structure for a single atmospheric profile.
 
@@ -78,7 +79,6 @@ def calculate_opacity_structure(profile, k_db, cia_db, grav, rcp, albedo_surf, R
             Tstar=tstar,
             flux_top_dw=flux_top_dw,
             k_database=k_db,
-            cia_database=cia_db,
             rayleigh=rayleigh
         )
 

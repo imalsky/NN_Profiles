@@ -26,8 +26,7 @@ def gen_profiles(config, P):
 
     # Step 2: Initialize opacity databases
     print("\nInitializing Opacity Databases...")
-    k_db, cia_db = initialize_opacity_databases(
-        config_file='Inputs/parameters.json')
+    k_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
 
     # Step 3: Set the stellar spectrum
     print("\nUsing a Stellar Blackbody...")
@@ -54,7 +53,6 @@ def gen_profiles(config, P):
         atm = calculate_opacity_structure(
             profile=profile,
             k_db=k_db,
-            cia_db=cia_db,
             grav=profile.get('grav', 10.0),
             rcp=profile.get('rcp', 0.28),
             albedo_surf=profile.get('albedo_surf', 0.0),
@@ -63,6 +61,7 @@ def gen_profiles(config, P):
             tstar=profile.get('Tstar', None),
             flux_top_dw=profile.get('flux_surface_down', None)
         )
+
         if atm is None:
             print(f"Skipping profile {successful_profiles + 1} due to errors.")
             attempts += 1

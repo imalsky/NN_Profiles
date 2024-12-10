@@ -233,15 +233,14 @@ def main(gen_profiles_bool=False,
 
 if __name__ == "__main__":
     main(
-        gen_profiles_bool=True,
-        normalize_data_bool=False,
-        create_rnn_model=False,
+        gen_profiles_bool=False,
+        normalize_data_bool=True,
+        create_rnn_model=True,
         epochs=500,
         nneur=(32, 32),
-        batch_size=8,
+        batch_size=4,
         learning_rate=1e-4,
-        input_variables=['pressure', 'temperature', 'Tstar', 'orbital_sep', 'flux_surface_down'],
-        #target_variables=['flux_up', 'flux_down'],  # Multiple targets
-        target_variables=['net_flux'],
-        model_type='RNN_New'
+        input_variables=['pressure', 'temperature', 'Tstar', 'flux_surface_down'],
+        target_variables=['net_flux'],  # Can be single or multiple targets
+        model_type='BasicRNN'
     )
