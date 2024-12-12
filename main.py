@@ -90,7 +90,12 @@ def main(gen_profiles_bool=False,
         print("Deleted previous Normalized Profiles")
 
         # Run the normalization process
-        global_stats = calculate_global_stats(input_folder, pressure_normalization_method)
+        global_stats = calculate_global_stats(
+            input_folder,
+            pressure_normalization_method,
+            use_robust_scaling=True,  # Change to True for robust scaling
+            clip_outliers_before_scaling=True  # Change to True to clip outliers
+        )
 
         # Process profiles with global stats
         if global_stats:
@@ -114,7 +119,7 @@ def main(gen_profiles_bool=False,
         profile_files_full = [f for f in os.listdir(data_folder) if f.endswith(".json") and f != "normalization_metadata.json"]
 
         print("Manually (not) decreasing number of profiles")
-        num_profiles = int(len(profile_files_full) / 100)
+        num_profiles = int(len(profile_files_full) / 1)
         profile_files = random.sample(profile_files_full, num_profiles)
         print("Training on", num_profiles, "Profiles")
 
@@ -237,14 +242,14 @@ def main(gen_profiles_bool=False,
 
 if __name__ == "__main__":
     main(
-        gen_profiles_bool=True,
-        normalize_data_bool=False,
-        create_rnn_model=False,
+        gen_profiles_bool=False,
+        normalize_data_bool=True,
+        create_rnn_model=True,
         epochs=500,
-        nneur=(64, 64),
+        nneur=(32, 32),
         batch_size=8,
         learning_rate=1e-4,
-        input_variables=['pressure', 'temperature', 'Tstar', 'flux_surface_down'],
+        input_variables=['pressure', 'temperature', 'flux_surface_down'],
         target_variables=['net_flux'],  # Can be single or multiple targets
         model_type='RNN_New',
     )
