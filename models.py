@@ -1,23 +1,23 @@
-# models.py
-
 import sys
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.nn import TransformerEncoder, TransformerEncoderLayer, Sequential, Conv1d, ReLU
 
 
 class BasicRNN(nn.Module):
     def __init__(self, RNN_type='LSTM', nx=4, nx_sfc=0, ny=1, nneur=(32, 32), outputs_one_longer=False, concat=False):
         """
-        Simple bidirectional RNN (Either LSTM or GRU)
+        Simple RNN (LSTM or GRU) model.
 
         Parameters:
-            RNN_type (str): Type of RNN ('LSTM' or 'GRU').
-            nx (int): Number of input features.
-            nx_sfc (int): Number of surface input features (set to 0 if not used).
-            ny (int): Number of output features.
-            nneur (tuple): Number of neurons in each RNN layer.
-            outputs_one_longer (bool): If True, the output sequence is one timestep longer than input.
-            concat (bool): If True, concatenate outputs from all RNN layers.
+            RNN_type (str): 'LSTM' or 'GRU'
+            nx (int): number of input features per timestep
+            nx_sfc (int): number of surface features (optional)
+            ny (int): number of output features
+            nneur (tuple): hidden sizes for each layer
+            outputs_one_longer (bool): not used in this example
+            concat (bool): whether to concatenate outputs from all RNN layers
         """
         super(BasicRNN, self).__init__()
         self.nx = nx
@@ -25,86 +25,57 @@ class BasicRNN(nn.Module):
         self.nx_sfc = nx_sfc
         self.nneur = nneur
         self.outputs_one_longer = outputs_one_longer
-        if len(nneur) < 1 or len(nneur) > 3:
-            sys.exit(
-                "Number of RNN layers and length of nneur should be between 1 and 3")
-
-        self.RNN_type = RNN_type
-        if self.RNN_type == 'LSTM':
-            RNN_model = nn.LSTM
-        elif self.RNN_type == 'GRU':
-            RNN_model = nn.GRU
-        else:
-            raise NotImplementedError(f"Unsupported RNN type: {self.RNN_type}")
-
         self.concat = concat
 
+        # Optionally handle surface features if needed
         if self.nx_sfc > 0:
-            self.mlp_surface1 = nn.Linear(nx_sfc, self.nneur[0])
-            if self.RNN_type == "LSTM":
-                self.mlp_surface2 = nn.Linear(nx_sfc, self.nneur[0])
+            self.mlp_surface = nn.Linear(nx_sfc, nneur[0])
 
-        self.rnn1 = RNN_model(nx, self.nneur[0], batch_first=True)
-        self.rnn2 = RNN_model(self.nneur[0], self.nneur[1], batch_first=True)
-        if len(self.nneur) == 3:
-            self.rnn3 = RNN_model(
-                self.nneur[1], self.nneur[2], batch_first=True)
+        if RNN_type == 'LSTM':
+            RNN_model = nn.LSTM
+        elif RNN_type == 'GRU':
+            RNN_model = nn.GRU
+        else:
+            raise NotImplementedError(f"Unsupported RNN type: {RNN_type}")
 
+        # Create RNN layers
+        self.rnn_layers = nn.ModuleList()
+        input_size = nx
+        for h in nneur:
+            self.rnn_layers.append(RNN_model(input_size, h, batch_first=True))
+            input_size = h
+
+        # Determine output dimension after RNN layers
         if concat:
             nh_rnn = sum(nneur)
         else:
             nh_rnn = nneur[-1]
 
-        self.mlp_output = nn.Linear(nh_rnn, self.ny)
+        self.mlp_output = nn.Linear(nh_rnn, ny)
 
     def forward(self, inputs_main, inputs_sfc=None):
-        if self.nx_sfc > 0:
-            if inputs_sfc is None:
-                raise ValueError(f"Expected surface inputs (inputs_sfc) for nx_sfc={self.nx_sfc}, but got None.")
+        """
+        Forward pass.
 
-            sfc1 = torch.tanh(self.mlp_surface1(inputs_sfc))
-            if self.RNN_type == "LSTM":
-                sfc2 = torch.tanh(self.mlp_surface2(inputs_sfc))
-                hidden = (sfc1.unsqueeze(0), sfc2.unsqueeze(0))
-            else:
-                hidden = sfc1.unsqueeze(0)
+        Parameters:
+            inputs_main (torch.Tensor): shape (batch, seq_len, nx)
+            inputs_sfc (torch.Tensor or None): shape (batch, nx_sfc) if used
+        """
+        x = inputs_main
+        # If needed, incorporate surface features:
+        # For simplicity, we won't do anything with inputs_sfc here.
+
+        outputs = []
+        for rnn in self.rnn_layers:
+            x, _ = rnn(x)
+            outputs.append(x)
+
+        if self.concat:
+            x = torch.cat(outputs, dim=-1)
         else:
-            hidden = None
+            x = outputs[-1]
 
-        # Reverse input sequence (if needed)
-        inputs_main = torch.flip(inputs_main, [1])
-
-        # RNN layers
-        out, hidden = self.rnn1(inputs_main, hidden)
-        out = torch.flip(out, [1])
-
-        out2, hidden2 = self.rnn2(out)
-
-        if len(self.nneur) == 3:
-            rnn3_input = torch.flip(out2, [1])
-            out3, hidden3 = self.rnn3(rnn3_input)
-            out3 = torch.flip(out3, [1])
-            rnnout = torch.cat((out3, out2, out),
-                               dim=2) if self.concat else out3
-        else:
-            rnnout = torch.cat((out2, out), dim=2) if self.concat else out2
-
-        # Final output layer
-        out = self.mlp_output(rnnout)
-        return out
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return self.mlp_output(x)
 
 
 class RNN_New(nn.Module):
@@ -115,119 +86,125 @@ class RNN_New(nn.Module):
                  nneur=(64, 64),
                  outputs_one_longer=False,
                  concat=False,
-                 pressure_threshold=0.05,
-                 pressure_index=0):
+                 use_pressure_gating=False,
+                 pressure_index=0,
+                 pressure_threshold=0.1):
         """
-        Initialize the RNN_New model with Layer Normalization and log-pressure-based gating.
+        Flexible model with optional pressure gating, supporting LSTM, GRU, Transformer, and TCN.
 
         Parameters:
-            RNN_type (str): Type of RNN ('LSTM' or 'GRU').
-            nx (int): Number of input features.
-            ny (int): Number of output features.
-            nneur (tuple): Number of neurons in each RNN layer.
-            outputs_one_longer (bool): If True, the output sequence is one timestep longer than input.
-            concat (bool): If True, concatenate outputs from all RNN layers.
-            pressure_threshold (float): Threshold for gating based on log-pressure differences.
-            pressure_index (int): Index of the pressure feature in the input variables.
+            RNN_type (str): 'LSTM', 'GRU', 'Transformer', 'TCN'
+            nx (int): Number of input features
+            ny (int): Number of output features
+            nneur (tuple): Hidden sizes (for Transformer, nneur[0] = d_model)
+            outputs_one_longer (bool): Not used here
+            concat (bool): Whether to concatenate outputs
+            use_pressure_gating (bool): If True, apply gating
+            pressure_index (int): Index of pressure feature
+            pressure_threshold (float): Threshold for gating
         """
         super(RNN_New, self).__init__()
+        self.RNN_type = RNN_type
         self.nx = nx
         self.ny = ny
         self.nneur = nneur
-        self.outputs_one_longer = outputs_one_longer
         self.concat = concat
-        self.pressure_threshold = pressure_threshold
+        self.use_pressure_gating = use_pressure_gating
         self.pressure_index = pressure_index
+        self.pressure_threshold = pressure_threshold
 
-        # Validate number of layers
-        if len(nneur) < 1 or len(nneur) > 3:
-            raise ValueError(
-                "Number of RNN layers and length of nneur should be between 1 and 3")
+        if self.RNN_type == 'LSTM':
+            self.model = nn.ModuleList([
+                nn.LSTM(input_size=nx if i == 0 else nneur[i - 1],
+                        hidden_size=h,
+                        batch_first=True)
+                for i, h in enumerate(nneur)
+            ])
+            self.concat_output_dim = nneur[-1]
 
-        # Select RNN model
-        if RNN_type == 'LSTM':
-            RNN_model = nn.LSTM
-        elif RNN_type == 'GRU':
-            RNN_model = nn.GRU
-        else:
-            raise NotImplementedError(f"Unsupported RNN type: {RNN_type}")
+        elif self.RNN_type == 'GRU':
+            self.model = nn.ModuleList([
+                nn.GRU(input_size=nx if i == 0 else nneur[i - 1],
+                       hidden_size=h,
+                       batch_first=True)
+                for i, h in enumerate(nneur)
+            ])
+            self.concat_output_dim = nneur[-1]
 
-        # Initialize RNN layers
-        self.rnn_layers = nn.ModuleList()
-        for i, hidden_size in enumerate(nneur):
-            input_size = nx if i == 0 else nneur[i-1]*2  # 2 for bidirectional
-            self.rnn_layers.append(
-                RNN_model(
-                    input_size=input_size,
-                    hidden_size=hidden_size,
-                    num_layers=1,
-                    batch_first=True,
-                    bidirectional=True
-                )
+        elif self.RNN_type == 'Transformer':
+            # For Transformer, d_model = nneur[0]
+            # If nx != d_model, we need a projection layer
+            self.d_model = nneur[0]
+            if nx != self.d_model:
+                self.input_projection = nn.Linear(nx, self.d_model)
+            else:
+                self.input_projection = None
+
+            transformer_layer = TransformerEncoderLayer(
+                d_model=self.d_model,
+                nhead=4,
+                dim_feedforward=256,
+                dropout=0.1
             )
+            self.model = TransformerEncoder(transformer_layer, num_layers=len(nneur))
+            self.concat_output_dim = self.d_model
 
-        # Initialize Layer Normalization layers
-        self.layer_norms = nn.ModuleList([
-            # 2 for bidirectional
-            nn.LayerNorm(hidden_size * 2) for hidden_size in nneur
-        ])
+        elif self.RNN_type == 'TCN':
+            layers = []
+            in_channels = nx
+            for out_channels in nneur:
+                layers.append(Conv1d(in_channels, out_channels, kernel_size=3, dilation=2, padding=2))
+                layers.append(ReLU())
+                in_channels = out_channels
+            self.model = Sequential(*layers)
+            self.concat_output_dim = nneur[-1]
 
-        # Output MLP
-        if self.concat:
-            # Sum over all bidirectional layers
-            nh_rnn = sum(n * 2 for n in nneur)
         else:
-            nh_rnn = nneur[-1] * 2  # Last layer's output size
+            raise NotImplementedError(f"Unsupported RNN type: {self.RNN_type}")
 
-        self.mlp_output = nn.Linear(nh_rnn, self.ny)
+        self.output_layer = nn.Linear(self.concat_output_dim, ny)
 
-    def forward(self, inputs_main):
+    def forward(self, inputs_main, inputs_sfc=None):
         """
-        Forward pass of the RNN_New model.
+        Forward pass with optional pressure gating.
 
         Parameters:
-            inputs_main (torch.Tensor): Main input tensor of shape (batch_size, sequence_length, nx).
-
-        Returns:
-            torch.Tensor: Predicted outputs of shape (batch_size, sequence_length, ny).
+            inputs_main (torch.Tensor): shape (batch, seq_len, nx)
+            inputs_sfc (torch.Tensor or None): optional surface inputs
         """
-        batch_size, sequence_length, _ = inputs_main.shape
+        x = inputs_main
 
-        # Check that pressure_index is valid
-        if self.pressure_index >= self.nx:
-            raise ValueError(f"pressure_index ({self.pressure_index}) is out of bounds for input size nx={self.nx}")
+        # Apply pressure gating if enabled
+        if self.use_pressure_gating:
+            pressure = x[:, :, self.pressure_index]  # (batch, seq_len)
+            pressure_diff = torch.abs(pressure[:, :, None] - pressure[:, None, :])  # (batch, seq_len, seq_len)
+            mask = torch.sigmoid(-pressure_diff / self.pressure_threshold)
+            x = torch.einsum('bij,bjk->bik', mask, x)
 
-        # Extract pressure values using pressure_index
-        pressure = inputs_main[:, :, self.pressure_index]
+        if self.RNN_type in ['LSTM', 'GRU']:
+            outputs = []
+            for rnn in self.model:
+                x, _ = rnn(x)
+                outputs.append(x)
+            if self.concat:
+                x = torch.cat(outputs, dim=-1)
+            else:
+                x = outputs[-1]
 
-        # Compute absolute pressure differences
-        # (batch_size, seq_len, seq_len)
-        pressure_diff = torch.abs(
-            pressure[:, :, None] - pressure[:, None, :])
+        elif self.RNN_type == 'Transformer':
+            # Project inputs if needed
+            if self.input_projection is not None:
+                x = self.input_projection(x)  # Now x is (batch, seq_len, d_model)
 
-        # Compute gating mask based on pressure differences
-        # (batch_size, seq_len, seq_len)
-        mask = torch.sigmoid(-pressure_diff / self.pressure_threshold)
+            # Transformer expects (seq_len, batch, d_model)
+            x = x.transpose(0, 1)
+            x = self.model(x)
+            x = x.transpose(0, 1)  # back to (batch, seq_len, d_model)
 
-        # Aggregate gated inputs
-        # (batch_size, seq_len, nx)
-        gated_inputs = torch.einsum('bij,bjk->bik', mask, inputs_main)
+        elif self.RNN_type == 'TCN':
+            # TCN expects (batch, nx, seq_len)
+            x = x.permute(0, 2, 1)
+            x = self.model(x)
+            x = x.permute(0, 2, 1)
 
-        rnn_out = gated_inputs
-
-        # Forward pass through RNN layers
-        for i, rnn in enumerate(self.rnn_layers):
-            out, _ = rnn(rnn_out)  # Forward pass through RNN layer
-            out = self.layer_norms[i](out)  # Apply Layer Normalization
-            rnn_out = out  # Update input for next layer
-
-        # Concatenate outputs from all RNN layers if concat=True
-        if self.concat:
-            combined_out = torch.cat(
-                [layer_out for layer_out in rnn_out], dim=2)
-        else:
-            combined_out = rnn_out  # Use output from the last RNN layer
-
-        # Pass through output MLP to get predictions
-        outputs = self.mlp_output(combined_out)
-        return outputs
+        return self.output_layer(x)

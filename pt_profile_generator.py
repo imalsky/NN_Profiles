@@ -6,14 +6,14 @@ class ProfileGenerator:
         """
         Parameters:
         - P (array): Pressure array in bar.
-        - config_file (str): Path to the JSON configuration file with variables and composition.
+        - config_file (str): Path to the JSON configuration file with variables.
         """
         self.P = P  # Pressure array in bar
-        self.load_parameters(config_file)  # Load variables and composition from JSON config file
+        self.load_parameters(config_file)  # Load variables from JSON config file
         self.N = self.number_of_simulations  # Number of profiles to generate
 
     def load_parameters(self, config_file):
-        """Load variables and fixed composition from a JSON configuration file."""
+        """Load variables from a JSON configuration file."""
         with open(config_file, 'r') as f:
             config = json.load(f)
 
@@ -22,9 +22,6 @@ class ProfileGenerator:
         for key, value in config.items():
             if isinstance(value, dict) and 'dist' in value:
                 self.variables[key] = value
-
-        # Load fixed composition from JSON
-        self.fixed_composition = config.get('composition', {})
 
         # Load number of simulations
         self.number_of_simulations = config.get('number_of_simulations', 10)
@@ -68,8 +65,6 @@ class ProfileGenerator:
             else:
                 params[key] = value
 
-        # Include fixed composition
-        params['composition'] = self.fixed_composition
 
         return params
 
@@ -103,7 +98,7 @@ class ProfileGenerator:
         #orbital_sep = int(Tstar ** 2 * Rstar / (T_irr ** 2))
         orbital_sep = (Rstar * Line_2013_beta ** 2 / 2) * (Tstar / T_irr) ** 2
  
-        # Check this, it doesn't matter a ton, but I'm not sure I'm getting my heat redistrubution right
+        # Check this, it doesn't matter a ton, but I'm not sure that I'm getting my heat redistrubution right
         flux_surface_down = (1 * 5.6703e-8 * T_irr ** 4.0) * (1 - albedo) / heat_redistribution
         
         #print(mu, albedo, heat_redistribution, mu * 5.67e-8 * T_irr ** 4 * 1)

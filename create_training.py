@@ -26,14 +26,9 @@ def gen_profiles(config, P):
 
     # Step 2: Initialize opacity databases
     print("\nInitializing Opacity Databases...")
-    k_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
+    k_db, cia_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
 
-    # Step 3: Set the stellar spectrum
-    print("\nUsing a Stellar Blackbody...")
-
-    # Step 4: Generate and process PT profiles sequentially
-
-    # Initialize the ProfileGenerator
+    # Step 3: Generate and process PT profiles sequentially
     generator = ProfileGenerator(P=P, config_file='Inputs/parameters.json')
 
     # Generate and process profiles one at a time
@@ -44,15 +39,17 @@ def gen_profiles(config, P):
     print("\nCalculating the Profiles...")
     while successful_profiles < generator.number_of_simulations and attempts < max_attempts:
         profile = generator.generate_single_profile()
-        if profile is None:
+
+        if profile is None or np.any(np.array(profile['tlay']) < 1):
             print("Failed to generate a valid profile, trying again...")
             attempts += 1
             continue
 
-        # Step 5: Calculate opacity structure for the current profile
+        # Step 4: Calculate opacity structure for the current profile
         atm = calculate_opacity_structure(
             profile=profile,
             k_db=k_db,
+            cia_db=cia_db,
             grav=profile.get('grav', 10.0),
             rcp=profile.get('rcp', 0.28),
             albedo_surf=profile.get('albedo_surf', 0.0),
@@ -67,11 +64,12 @@ def gen_profiles(config, P):
             attempts += 1
             continue
 
-        # Step 6: Calculate heating rates and fluxes
-        heat_rates, net_fluxes, TOA_flux, flux_up, flux_down= calculate_heating_rates_and_fluxes(
+        # Step 5: Calculate heating rates and fluxes
+        heat_rates, net_fluxes, TOA_flux, flux_up, flux_down = calculate_heating_rates_and_fluxes(
             atm,
             wl_range=config.get('opacity_params', {}).get('wavelength_range', [0.3, 50.0]),
             rayleigh=config.get('opacity_params', {}).get('rayleigh', False))
+
         if heat_rates is None:
             print(f"Skipping profile {successful_profiles + 1} due to errors in heating rate calculations.")
             attempts += 1
@@ -89,6 +87,7 @@ def gen_profiles(config, P):
             "heating_rate": list(heat_rates),
             "orbital_sep": profile.get('orbital_sep', None),
             "flux_surface_down": profile.get('flux_surface_down', None),
+            "T_int": profile.get('T_int', None),
         }
         save_data(data_to_save, folder='Data/Profiles', base_filename='prof')
 

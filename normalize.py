@@ -24,15 +24,25 @@ def calculate_global_stats(input_folder, pressure_normalization_method):
 
             # Handle scalar numerical values
             if isinstance(value, (int, float)):
+                if np.isnan(value):
+                    print(f"Debug: NaN encountered in key '{key}' as scalar in file '{profile_file}'.")
                 key_values[key].append(value)
+
             # Handle lists of numerical values
             elif isinstance(value, list) and all(isinstance(v, (int, float)) for v in value):
                 if key == "pressure":
                     # Apply log10 to pressures
                     log_pressures = np.log10(value)
+                    if np.isnan(log_pressures).any():
+                        print(
+                            f"Debug: NaN encountered in 'log_pressures' for key '{key}' in file '{profile_file}'. Values: {value}")
                     key_values[key].extend(log_pressures)
                 else:
+                    if np.isnan(value).any():
+                        print(f"Debug: NaN encountered in key '{key}' list in file '{profile_file}'. Values: {value}")
                     key_values[key].extend(value)
+
+
 
     # Calculate global stats for standardization
     stats = {}

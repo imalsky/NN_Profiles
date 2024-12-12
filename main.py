@@ -99,6 +99,7 @@ def main(gen_profiles_bool=False,
     # Create the RNN from the training set
     if create_rnn_model:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"Running on {'GPU' if device.type == 'cuda' else 'CPU'}")
         data_folder = "Data/Normalized_Profiles"
         model_save_path = "Data/Model"
         os.makedirs(model_save_path, exist_ok=True)
@@ -111,7 +112,9 @@ def main(gen_profiles_bool=False,
 
         # Load profiles
         profile_files_full = [f for f in os.listdir(data_folder) if f.endswith(".json") and f != "normalization_metadata.json"]
-        num_profiles = int(len(profile_files_full) / 1)
+
+        print("Manually (not) decreasing number of profiles")
+        num_profiles = int(len(profile_files_full) / 100)
         profile_files = random.sample(profile_files_full, num_profiles)
         print("Training on", num_profiles, "Profiles")
 
@@ -166,7 +169,7 @@ def main(gen_profiles_bool=False,
             )
         elif model_type == 'RNN_New':
             model = RNN_New(
-                RNN_type='LSTM',
+                RNN_type='Transformer',
                 nx=input_features,
                 ny=target_features,
                 nneur=nneur,
@@ -175,6 +178,7 @@ def main(gen_profiles_bool=False,
             )
         else:
             raise ValueError(f"Unknown model type: {model_type}")
+
 
         # Define loss criterion
         criterion = nn.MSELoss()
@@ -233,14 +237,16 @@ def main(gen_profiles_bool=False,
 
 if __name__ == "__main__":
     main(
-        gen_profiles_bool=False,
-        normalize_data_bool=True,
-        create_rnn_model=True,
+        gen_profiles_bool=True,
+        normalize_data_bool=False,
+        create_rnn_model=False,
         epochs=500,
-        nneur=(32, 32),
-        batch_size=4,
+        nneur=(64, 64),
+        batch_size=8,
         learning_rate=1e-4,
         input_variables=['pressure', 'temperature', 'Tstar', 'flux_surface_down'],
         target_variables=['net_flux'],  # Can be single or multiple targets
-        model_type='BasicRNN'
+        model_type='RNN_New',
     )
+
+
