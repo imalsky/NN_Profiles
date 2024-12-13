@@ -25,10 +25,15 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
 
     Returns:
         float: Best validation loss achieved.
+        str: Path to the best model.
     """
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
     model.to(device)
     best_val_loss = float('inf')
     patience_counter = 0
+    log_path = os.path.join(save_path, "training_log.txt")
 
     for epoch in range(num_epochs):
         model.train()
@@ -51,6 +56,7 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
 
             # Backpropagation and optimization
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)  # Gradient clipping
             optimizer.step()
 
             total_train_loss += loss.item()
@@ -62,7 +68,12 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
         scheduler.step(val_loss)
         current_lr = optimizer.param_groups[0]['lr']
 
-        # Output training info every 10 epochs and the first epoch
+        # Log training info
+        with open(log_path, "a") as log_file:
+            log_file.write(f"Epoch {epoch+1}/{num_epochs}, LR: {current_lr:.2e}, "
+                           f"Train Loss: {train_loss:.3e}, Val Loss: {val_loss:.3e}\n")
+
+        # Print progress every 10 epochs
         if (epoch + 1) % 10 == 0 or epoch == 0:
             print(f"Epoch {epoch+1}/{num_epochs}, LR: {current_lr:.2e}, "
                   f"Train Loss: {train_loss:.3e}, Val Loss: {val_loss:.3e}")
@@ -71,15 +82,14 @@ def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), os.path.join(
-                save_path, "best_model.pth"))
+            torch.save(model.state_dict(), os.path.join(save_path, "best_model.pth"))
         else:
             patience_counter += 1
             if patience_counter >= early_stopping_patience:
-                print("Early stopping triggered!")
+                print(f"Early stopping triggered at epoch {epoch + 1}!")
                 break
 
-    return best_val_loss
+    return best_val_loss, os.path.join(save_path, "best_model.pth")
 
 
 def evaluate_model(model, data_loader, criterion, device):

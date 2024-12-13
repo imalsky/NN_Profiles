@@ -16,10 +16,6 @@ from utils import (
 
 
 def gen_profiles(config, P):
-    print("\n" + "=" * 70)
-    print(f"{'ATMOSPHERIC MODELING PIPELINE':^70}")
-    print("=" * 70)
-
     # Step 1: Clean up old profiles
     print("\nDeleting old profiles...")
     delete_old_profiles(folder='Data/Profiles', base_filename='prof')

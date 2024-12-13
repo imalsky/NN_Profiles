@@ -84,24 +84,9 @@ This will load the best saved model and visualize the predictions against actual
 
 ## Future Work
 
-- Scattering
 - DISORT radiative transfer
 - Varying planet compositions
-- Stellar Radiation
-- Betterness of the whole thing
-
-
-
-
-
-
-
-Workflow:
-- Edit the parameters.json file
-- run create_training.py
-- run normalize_data.py
-- run main.py
-
-
-
-python normalize.py --pressure_norm standard --temperature_norm min-max --net_flux_norm none
+- Add clouds
+- Add hazes
+- Add different premixed tables
+- Add info about the C/O ratio and metallicity of the table to the metadata that the model is trained on
