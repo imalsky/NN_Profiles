@@ -1,9 +1,13 @@
 #!/bin/bash
 
-# Define paths
+# Define paths (relative to the script location)
 SOURCE_DIR="source"          # Sphinx source directory
 BUILD_DIR="build/html"       # Directory where Sphinx generates HTML output
-DEPLOY_DIR="."               # Deployment directory (root of docs/)
+DEPLOY_DIR="."               # Root of 'docs/' for deployment
+
+# Ensure script runs from the correct directory (where this script is located)
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR" || exit 1
 
 # Step 1: Clean previous builds
 echo "Cleaning previous builds..."
@@ -25,14 +29,15 @@ fi
 # Step 3: Copy the built files to the deployment directory
 echo "Copying built files to the deployment directory..."
 if [ -d "$BUILD_DIR" ]; then
-    cp -r $BUILD_DIR/* $DEPLOY_DIR
+    cp -r "$BUILD_DIR"/* "$DEPLOY_DIR"
+    if [ $? -ne 0 ]; then
+        echo "Error: Failed to copy built files. Exiting."
+        exit 1
+    fi
 else
     echo "Error: Build directory '$BUILD_DIR' not found. Exiting."
     exit 1
 fi
 
-# Step 4: Remove any residual 'build/' directory to prevent it from being pushed
-echo "Cleaning up build directory..."
-rm -rf build/
-
+# Step 4: Confirmation message
 echo "Documentation successfully built and deployed!"
