@@ -1,22 +1,33 @@
-.. NN_Profiles documentation master file, created by
-   sphinx-quickstart on Mon Dec 16 11:37:43 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+NN_Profiles Documentation
+=========================
 
-Welcome to NN_Profiles's documentation!
-=======================================
+Welcome to the NN_Profiles documentation! This guide provides an overview of the package.
+
+Description
+-----------
+Predict Radiative Transfer for 1D profiles.
+
+Key Features
+------------
+- **None**:
+
+Getting Started
+---------------
+To get started, refer to the installation and usage sections for step-by-step instructions.
+
+Table of Contents
+-----------------
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   quickstart
+   installation
+   usage
+   api_reference
+   contributing
+   changelog
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Support
+-------
+https://github.com/imalsky/NN_Profiles
