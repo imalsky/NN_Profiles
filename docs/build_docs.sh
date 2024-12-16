@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Define paths (relative to the script location)
+# Define paths
 SOURCE_DIR="source"          # Sphinx source directory
 BUILD_DIR="build/html"       # Directory where Sphinx generates HTML output
-DEPLOY_DIR="."               # Root of 'docs/' for deployment
+DEPLOY_DIR="."               # Deployment directory (root of docs/)
 
-# Ensure script runs from the correct directory (where this script is located)
+# Ensure script runs from the correct directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR" || exit 1
 
@@ -14,7 +14,7 @@ echo "Cleaning previous builds..."
 if [ -f "Makefile" ]; then
     make clean
 else
-    echo "Error: Makefile not found in current directory. Exiting."
+    echo "Error: Makefile not found. Exiting."
     exit 1
 fi
 
@@ -22,22 +22,17 @@ fi
 echo "Building documentation..."
 make html
 if [ $? -ne 0 ]; then
-    echo "Error: Documentation build failed. Exiting."
+    echo "Error: Build failed. Exiting."
     exit 1
 fi
 
-# Step 3: Copy the built files to the deployment directory
-echo "Copying built files to the deployment directory..."
-if [ -d "$BUILD_DIR" ]; then
-    cp -r "$BUILD_DIR"/* "$DEPLOY_DIR"
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to copy built files. Exiting."
-        exit 1
-    fi
-else
-    echo "Error: Build directory '$BUILD_DIR' not found. Exiting."
-    exit 1
-fi
+# Step 3: Remove old files from the root directory
+echo "Removing old files..."
+find "$DEPLOY_DIR" -maxdepth 1 ! -name 'source' ! -name 'Makefile' \
+    ! -name 'make.bat' ! -name 'build_docs.sh' ! -name '.' -exec rm -rf {} +
 
-# Step 4: Confirmation message
+# Step 4: Copy new built files to the deployment directory
+echo "Copying new files..."
+cp -r "$BUILD_DIR"/* "$DEPLOY_DIR"
+
 echo "Documentation successfully built and deployed!"
