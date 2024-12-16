@@ -89,4 +89,4 @@ This will load the best saved model and visualize the predictions against actual
 - Add clouds
 - Add hazes
 - Add different premixed tables
-- Add info about the C/O ratio and metallicity of the table to the metadata that the model is trained on
+- Add info about the C/O ratio and metallicity of the table to the metadata that the model is trained onRebuild trigger
