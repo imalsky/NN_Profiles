@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]  # Tools required for building the package
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "NN_Profiles"  # Name of your package
+version = "0.1.0"  # Version of your package
+description = "A suite for profiling neural networks"  # Short description
+readme = "README.md"  # Path to your README file
+license = {file = "LICENSE"}  # Path to your license file
+authors = [
+    {name = "Isaac Malsky", email = "isaacmalsky@gmail.com"}
+]
+homepage = "https://github.com/imalsky/NN_Profiles"  # Project homepage
+requires-python = ">=3.8"  # Minimum Python version
+
+dependencies = [
+    "exo_k>=1.3.0,<2.0.0",
+    "numpy>=1.21.0,<3.0.0",
+    "torch>=2.0.0,<3.0.0",
+    "optuna>=4.0.0,<5.0.0",
+]
+
+[project.urls]
+Documentation = "https://github.com/imalsky/NN_Profiles/wiki"
+Source = "https://github.com/imalsky/NN_Profiles"
+Tracker = "https://github.com/imalsky/NN_Profiles/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["NN_Profiles*"]  # Include all sub-packages

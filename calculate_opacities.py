@@ -1,7 +1,6 @@
 import os
 import json
 import exo_k as xk
-import re
 
 def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     """

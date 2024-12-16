@@ -8,6 +8,8 @@ class ProfileGenerator:
         - P (array): Pressure array in bar.
         - config_file (str): Path to the JSON configuration file with variables.
         """
+        self.number_of_simulations = None
+        self.variables = {}
         self.P = P  # Pressure array in bar
         self.load_parameters(config_file)  # Load variables from JSON config file
         self.N = self.number_of_simulations  # Number of profiles to generate
@@ -18,7 +20,6 @@ class ProfileGenerator:
             config = json.load(f)
 
         # Extract variables with 'dist' field
-        self.variables = {}
         for key, value in config.items():
             if isinstance(value, dict) and 'dist' in value:
                 self.variables[key] = value

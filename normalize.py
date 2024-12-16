@@ -145,6 +145,7 @@ def normalize_robust(data, median, iqr):
     return robust_scale(data, median, iqr)
 
 
+# noinspection PyTypeChecker
 def process_profiles(input_folder, output_folder, stats, pressure_normalization_method):
     """Process and normalize all elements in the input JSON profiles using the given stats."""
     profile_files = [f for f in os.listdir(input_folder) if f.endswith(".json")]
@@ -155,8 +156,10 @@ def process_profiles(input_folder, output_folder, stats, pressure_normalization_
 
     # Save normalization metadata
     normalization_metadata = stats.copy()
+
     metadata_path = os.path.join(output_folder, "normalization_metadata.json")
     with open(metadata_path, "w") as f:
+        # noinspection PyTypeChecker
         json.dump(normalization_metadata, f, indent=4)
     print(f"\n✔ Normalization metadata saved to: {metadata_path}")
 
@@ -215,6 +218,7 @@ def process_profiles(input_folder, output_folder, stats, pressure_normalization_
 
         # Save the normalized profile
         with open(output_path, "w") as f:
+            # noinspection PyTypeChecker
             json.dump(normalized_profile, f, indent=4)
 
     print(f"✔ Processed and saved normalized profiles to {output_folder}")
