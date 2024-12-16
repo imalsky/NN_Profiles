@@ -1,18 +1,34 @@
 #!/bin/bash
 
-# Navigate to docs directory
-cd docs
+# Define key directories
+BUILD_DIR="build/html"    # Directory where Sphinx generates HTML output
+SOURCE_DIR="source"       # Directory containing Sphinx source files
+DEPLOY_DIR="."            # Root directory for GitHub Pages deployment (current directory)
 
-# Clean old builds
-echo "Cleaning previous build..."
-make clean
+# Step 1: Clean previous builds
+if [ -f "Makefile" ]; then
+    echo "Cleaning previous builds..."
+    make clean
+else
+    echo "Error: Makefile not found in the current directory. Exiting."
+    exit 1
+fi
 
-# Build the documentation
-echo "Building new documentation..."
+# Step 2: Build the documentation
+echo "Building documentation..."
 make html
+if [ $? -ne 0 ]; then
+    echo "Error: Build process failed. Exiting."
+    exit 1
+fi
 
-# Copy the built files to the top level of docs/
-echo "Copying built files to root of docs directory..."
-cp -r _build/html/* .
+# Step 3: Deploy build output to the root of the docs/ directory
+if [ -d "$BUILD_DIR" ]; then
+    echo "Copying built files to the deployment directory..."
+    cp -r "$BUILD_DIR"/* "$DEPLOY_DIR"
+else
+    echo "Error: Build directory '$BUILD_DIR' not found. Exiting."
+    exit 1
+fi
 
-echo "Documentation build complete."
+echo "Documentation successfully built and deployed!"
