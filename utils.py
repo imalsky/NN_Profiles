@@ -27,7 +27,7 @@ def sample_constant_or_distribution(param_config):
         raise ValueError(f"Unsupported distribution type: {param_config['dist']}")
 
 
-def delete_old_profiles(folder='Data/Profiles', base_filename='prof'):
+def delete_old_profiles(folder='data/Profiles', base_filename='prof'):
     """
     Delete all old profile files in the specified folder.
 
@@ -48,7 +48,7 @@ def delete_old_profiles(folder='Data/Profiles', base_filename='prof'):
     # print(f"Deleted {deleted_files} old profile(s) in '{folder}'.")
 
 
-def save_data(data, folder='Data/Profiles', base_filename='profile_'):
+def save_data(data, folder='data/Profiles', base_filename='profile_'):
     """
     Save data in dictionary format to a JSON file with a unique ordered filename.
 
@@ -75,7 +75,7 @@ def save_data(data, folder='Data/Profiles', base_filename='profile_'):
 # Load normalization metadata
 
 
-def load_normalization_metadata(metadata_path="Data/Normalized_Profiles/normalization_metadata.json"):
+def load_normalization_metadata(metadata_path="data/Normalized_Profiles/normalization_metadata.json"):
     if not os.path.exists(metadata_path):
         raise FileNotFoundError(
             f"Normalization metadata not found at {metadata_path}")

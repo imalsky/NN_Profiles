@@ -41,9 +41,9 @@ def main(gen_profiles_bool=False,
     # Generate profiles
     if gen_profiles_bool:
         print("\n" + "=" * 70)
-        print(f"{'Creating the Training Data':^70}")
+        print(f"{'Creating the Training data':^70}")
         print("=" * 70 + "\n")
-        create_directories('Inputs', 'Data', 'Figures')
+        create_directories('Inputs', 'data', 'Figures')
         pressure_range = config['pressure_range']
         P = np.logspace(np.log10(pressure_range['min']), np.log10(pressure_range['max']), num=pressure_range['points'])
         gen_profiles(config, P)
@@ -51,10 +51,10 @@ def main(gen_profiles_bool=False,
     # Normalize data
     if normalize_data_bool:
         print("\n" + "=" * 70)
-        print(f"{'Normalizing the Data':^70}")
+        print(f"{'Normalizing the data':^70}")
         print("=" * 70 + "\n")
-        input_folder = "Data/Profiles"
-        output_folder = "Data/Normalized_Profiles"
+        input_folder = "data/Profiles"
+        output_folder = "data/Normalized_Profiles"
         os.makedirs(output_folder, exist_ok=True)
 
         for file in os.listdir(output_folder):
@@ -73,8 +73,8 @@ def main(gen_profiles_bool=False,
 
     # Common paths and device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    data_folder = "Data/Normalized_Profiles"
-    model_save_path = "Data/Model"
+    data_folder = "data/Normalized_Profiles"
+    model_save_path = "data/Model"
     os.makedirs(model_save_path, exist_ok=True)
 
     # Print GPU stuff

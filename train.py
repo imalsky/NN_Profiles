@@ -10,7 +10,7 @@ from transformer_model import AtmosphericModel  # Assuming this is your Transfor
 from dataset import NormalizedProfilesDataset  # Assuming this is your dataset class
 
 def train_model(model, train_loader, val_loader, optimizer, criterion, scheduler,
-                num_epochs=100, early_stopping_patience=10, device='cpu', save_path='Data/Model'):
+                num_epochs=100, early_stopping_patience=10, device='cpu', save_path='data/Model'):
     """
     Train the Transformer-based model with a learning rate scheduler.
 

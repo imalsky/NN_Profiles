@@ -18,7 +18,7 @@ from utils import (
 def gen_profiles(config, P):
     # Step 1: Clean up old profiles
     print("\nDeleting old profiles...")
-    delete_old_profiles(folder='Data/Profiles', base_filename='prof')
+    delete_old_profiles(folder='data/Profiles', base_filename='prof')
 
     # Step 2: Initialize opacity databases
     print("\nInitializing Opacity Databases...")
@@ -85,7 +85,7 @@ def gen_profiles(config, P):
             "flux_surface_down": profile.get('flux_surface_down', None),
             "T_int": profile.get('T_int', None),
         }
-        save_data(data_to_save, folder='Data/Profiles', base_filename='prof')
+        save_data(data_to_save, folder='data/Profiles', base_filename='prof')
 
         # Step 8: Clean up to free memory
         del atm

@@ -212,7 +212,7 @@ def evaluate_model(model, val_loader, criterion, device='cpu'):
 # Main Script
 if __name__ == "__main__":
     # Configurations
-    data_folder = "Data/Normalized_Profiles"
+    data_folder = "data/Normalized_Profiles"
     batch_size = 32
     hidden_dim = 128
     num_heads = 4

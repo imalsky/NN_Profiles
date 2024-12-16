@@ -23,7 +23,7 @@ def initialize_opacity_databases(config_file='Inputs/parameters.json'):
     # datapath = config['datapath']
     # print(datapath)
     print("Using local path, not  specified path for opacities")
-    datapath = os.getcwd() + '/Data/Opacities/'
+    datapath = os.getcwd() + '/data/Opacities/'
 
     k_table_files = config['k_table_files']
     cia_species = config['cia_species']
