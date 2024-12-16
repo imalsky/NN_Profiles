@@ -14,3 +14,7 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+
+
+# Ensure correct base URL for static assets
+html_baseurl = "https://imalsky.github.io/NN_Profiles/"
