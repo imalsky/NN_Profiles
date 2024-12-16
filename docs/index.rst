@@ -22,11 +22,7 @@ Table of Contents
    :maxdepth: 2
    :caption: Contents:
 
-   installation
-   usage
-   api_reference
-   contributing
-   changelog
+   quickstart
 
 Support
 -------
