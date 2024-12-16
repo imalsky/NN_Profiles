@@ -10,6 +10,8 @@ Welcome to NN_Profiles's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   quickstart
+
 
 
 Indices and tables
