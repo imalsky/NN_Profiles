@@ -77,6 +77,12 @@ def main(gen_profiles_bool=False,
     model_save_path = "Data/Model"
     os.makedirs(model_save_path, exist_ok=True)
 
+    # Print GPU stuff
+    if device.type == "cuda":
+        print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+    else:
+        print("Using CPU")
+
     # Hyperparameter tuning or model training
     if create_and_hypertune:
         print("\n" + "=" * 70)
