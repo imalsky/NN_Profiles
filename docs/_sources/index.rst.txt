@@ -1,19 +1,33 @@
 NN_Profiles Documentation
 =========================
 
-Welcome to the NN_Profiles documentation! This guide provides an overview of the package.
+Welcome to the **NN_Profiles** documentation! This guide explains how to get started, explore major features, and access resources for using the NN_Profiles package.
 
 Description
 -----------
-Predict Radiative Transfer for 1D profiles.
+`NN_Profiles` enables users to efficiently compute radiative transfer for 1D atmospheric profiles, streamlining workflows for atmospheric research and simulations.
 
-Key Features
-------------
-- **None**:
+Major Features
+--------------
+- **1D Radiative Transfer**: Predict radiative transfer for atmospheric profiles.
+- **User-Friendly Workflows**: Simplify the analysis process for model development.
+- **Results Export**: Export computed results for further analysis.
 
-Getting Started
----------------
-To get started, refer to the installation and usage sections for step-by-step instructions.
+Resources
+---------
+
+.. raw:: html
+
+   <div align="center">
+     <a href="quickstart.html" style="text-decoration: none;">
+       <div style="display: inline-block; width: 150px; height: 50px;
+                   background-color: #d8d8d8; text-align: center;
+                   border-radius: 10px; line-height: 50px; font-weight: bold;
+                   margin: 10px; color: #333;">
+         Quickstart
+       </div>
+     </a>
+   </div>
 
 Table of Contents
 -----------------
@@ -23,7 +37,3 @@ Table of Contents
    :caption: Contents:
 
    quickstart
-
-Support
--------
-https://github.com/imalsky/NN_Profiles
