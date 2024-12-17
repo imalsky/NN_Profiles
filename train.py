@@ -17,6 +17,7 @@ def train_model(model: nn.Module,
                 scheduler: optim.lr_scheduler._LRScheduler,
                 num_epochs: int = 100,
                 early_stopping_patience: int = 10,
+                min_delta: float = 1e-4,
                 device: str = 'cpu',
                 save_path: str = 'data/model') -> Tuple[str, float]:
     """
@@ -31,6 +32,7 @@ def train_model(model: nn.Module,
         scheduler (optim.lr_scheduler._LRScheduler): Learning rate scheduler.
         num_epochs (int): Maximum number of epochs for training.
         early_stopping_patience (int): Number of epochs with no improvement to allow before stopping.
+        min_delta (float): Minimum change in the monitored quantity to qualify as a step that didn't improve
         device (str): 'cuda' or 'cpu'.
         save_path (str): Directory to save the best model checkpoint.
 
@@ -67,11 +69,11 @@ def train_model(model: nn.Module,
         scheduler.step()
 
         # Log progress
-        if (epoch + 1) % 10 == 0 or epoch == 0:
+        if (epoch + 1) % 5 == 0 or epoch == 0:
             print(f"Epoch {epoch + 1}/{num_epochs}  |  Train Loss: {train_loss:.3e}  |  Val Loss: {val_loss:.3e}")
 
-        # Early Stopping logic
-        if val_loss < best_val_loss:
+        # Early Stopping with min_delta
+        if val_loss < (best_val_loss - min_delta):
             best_val_loss = val_loss
             patience_counter = 0
             torch.save(model.state_dict(), best_model_path)
@@ -128,6 +130,7 @@ def train_model_from_config(config: dict,
         data_folder (str): Path to the normalized profile data folder.
         model_save_path (str): Directory to save the best model checkpoint.
         device (torch.device): Training device ('cpu' or 'cuda').
+        trial.
 
     Returns:
         float: The best validation loss achieved during training.
@@ -161,7 +164,6 @@ def train_model_from_config(config: dict,
     model = AtmosphericModel(
         nx=len(config["input_variables"]),
         ny=len(config["target_variables"]),
-        nneur=config.get("nneur", (32, 32)),
         d_model=config["d_model"],
         nhead=config["nhead"],
         num_encoder_layers=config["num_encoder_layers"],
@@ -180,9 +182,19 @@ def train_model_from_config(config: dict,
         output_proj=config.get("output_proj", True)
     ).to(device)
 
-    criterion = nn.SmoothL1Loss(beta=1.0)
-    optimizer = optim.AdamW(model.parameters(), lr=config["learning_rate"])
-    scheduler = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2, eta_min=1e-6)
+    # Loss function
+    criterion = nn.SmoothL1Loss(beta=config["smooth_l1_beta"])
+
+    # Optimizer (read weight_decay directly from config)
+    optimizer = optim.AdamW(model.parameters(), lr=config["learning_rate"], weight_decay=config["weight_decay"])
+
+    # Scheduler (read T_0, T_mult, and eta_min directly from config)
+    scheduler = CosineAnnealingWarmRestarts(
+        optimizer,
+        T_0=config["T_0"],
+        T_mult=config["T_mult"],
+        eta_min=config["eta_min"]
+    )
 
     # Train the model
     best_model_path, best_val_loss = train_model(
@@ -220,17 +232,18 @@ def objective(trial, params: dict, data_folder: str, model_save_path: str, devic
     Returns:
         float: The validation loss after training for the current trial.
     """
-    # Update hyperparameters from the search space
+    # Update hyperparameters with a reduced search space
     params.update({
         "d_model": trial.suggest_categorical("d_model", [64, 128]),
         "nhead": trial.suggest_categorical("nhead", [4, 8]),
-        "num_encoder_layers": trial.suggest_int("num_encoder_layers", 2, 6),
-        "dim_feedforward": trial.suggest_categorical("dim_feedforward", [256, 512, 1024]),
-        "dropout": trial.suggest_float("dropout", 0.1, 0.5),
-        "layer_norm_eps": trial.suggest_loguniform("layer_norm_eps", 1e-6, 1e-4),
-        "batch_size": trial.suggest_categorical("batch_size", [8, 16, 32]),
-        "learning_rate": trial.suggest_loguniform("learning_rate", 1e-5, 1e-3),
+        "num_encoder_layers": trial.suggest_int("num_encoder_layers", 2, 4),
+        "dim_feedforward": trial.suggest_categorical("dim_feedforward", [256, 512]),
+        "dropout": trial.suggest_float("dropout", 0.1, 0.3),
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32]),
+        "learning_rate": trial.suggest_loguniform("learning_rate", 1e-4, 5e-4)
     })
+
+
 
     val_loss = train_model_from_config(params, data_folder, model_save_path, device)
     return val_loss

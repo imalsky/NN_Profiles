@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import warnings
 import optuna
-from typing import Optional
 
 from create_training import gen_profiles
 from normalize import calculate_global_stats, process_profiles
@@ -146,6 +145,6 @@ if __name__ == "__main__":
     main(
         gen_profiles_bool=False,
         normalize_data_bool=False,
-        create_model=True,
-        create_and_hypertune=False
+        create_model=False,
+        create_and_hypertune=True
     )

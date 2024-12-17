@@ -2,6 +2,12 @@
 
 NN_Profiles is a Python-based pipeline for training and evaluating physics-informed Recurrent Neural Networks (RNNs) on planetary atmospheric profiles. This repository supports data preprocessing, normalization, training, and visualization of predictions.
 
+## Doc
+
+A doc for this code lives here: https://imalsky.github.io/NN_Profiles/
+
+It is still very much in dev
+
 ## Features
 
 - **Data Preprocessing**: Normalize raw atmospheric profiles for model training.
