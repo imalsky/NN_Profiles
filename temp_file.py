@@ -155,7 +155,7 @@ class AtmosphericDataset(Dataset):
         return self.data[idx], self.targets[idx]
 
 
-# Model Training Function
+# model Training Function
 def train_model(model, train_loader, criterion, optimizer, epochs=20, device='cpu'):
     model = model.to(device)
     model.train()
@@ -179,7 +179,7 @@ def train_model(model, train_loader, criterion, optimizer, epochs=20, device='cp
         print(f"Epoch {epoch + 1}/{epochs}, Loss: {epoch_loss / len(train_loader):.4e}")
 
 
-# Model Evaluation Function
+# model Evaluation Function
 def evaluate_model(model, val_loader, criterion, device='cpu'):
     model = model.to(device)
     model.eval()
@@ -212,7 +212,7 @@ def evaluate_model(model, val_loader, criterion, device='cpu'):
 # Main Script
 if __name__ == "__main__":
     # Configurations
-    data_folder = "data/Normalized_Profiles"
+    data_folder = "data/normalize_profiles"
     batch_size = 32
     hidden_dim = 128
     num_heads = 4
@@ -250,15 +250,15 @@ if __name__ == "__main__":
     criterion = nn.MSELoss()  # Mean Squared Error for regression
     optimizer = Adam(model.parameters(), lr=learning_rate)
 
-    # Train Model
+    # Train model
     print("Starting Training...")
     train_model(model, train_loader, criterion, optimizer, epochs=epochs, device=device)
 
-    # Evaluate Model
-    print("Evaluating Model...")
+    # Evaluate model
+    print("Evaluating model...")
     evaluate_model(model, val_loader, criterion, device=device)
 
-    # Save the Model
+    # Save the model
     model_save_path = "atmospheric_transformer.pth"
     torch.save(model.state_dict(), model_save_path)
-    print(f"Model saved to {model_save_path}")
+    print(f"model saved to {model_save_path}")

@@ -18,21 +18,21 @@ from utils import (
 def gen_profiles(config, P):
     # Step 1: Clean up old profiles
     print("\nDeleting old profiles...")
-    delete_old_profiles(folder='data/Profiles', base_filename='prof')
+    delete_old_profiles(folder='data/profiles', base_filename='prof')
 
     # Step 2: Initialize opacity databases
     print("\nInitializing Opacity Databases...")
-    k_db, cia_db = initialize_opacity_databases(config_file='Inputs/parameters.json')
+    k_db, cia_db = initialize_opacity_databases(config_file='inputs/parameters.json')
 
     # Step 3: Generate and process PT profiles sequentially
-    generator = ProfileGenerator(P=P, config_file='Inputs/parameters.json')
+    generator = ProfileGenerator(P=P, config_file='inputs/parameters.json')
 
     # Generate and process profiles one at a time
     successful_profiles = 0
     max_attempts = generator.number_of_simulations * 2  # To prevent infinite loops
     attempts = 0
 
-    print("\nCalculating the Profiles...")
+    print("\nCalculating the profiles...")
     while successful_profiles < generator.number_of_simulations and attempts < max_attempts:
         profile = generator.generate_single_profile()
 
@@ -85,7 +85,7 @@ def gen_profiles(config, P):
             "flux_surface_down": profile.get('flux_surface_down', None),
             "T_int": profile.get('T_int', None),
         }
-        save_data(data_to_save, folder='data/Profiles', base_filename='prof')
+        save_data(data_to_save, folder='data/profiles', base_filename='prof')
 
         # Step 8: Clean up to free memory
         del atm

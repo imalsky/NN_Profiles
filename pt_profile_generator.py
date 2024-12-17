@@ -2,7 +2,7 @@ import numpy as np
 import json
 
 class ProfileGenerator:
-    def __init__(self, P, config_file='Inputs/parameters.json'):
+    def __init__(self, P, config_file='inputs/parameters.json'):
         """
         Parameters:
         - P (array): Pressure array in bar.

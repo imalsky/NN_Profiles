@@ -1,16 +1,19 @@
-.. NN_Profiles documentation master file, created by
-   sphinx-quickstart on Mon Dec 16 13:28:48 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. Atmospheric Transformer documentation master file
 
-Welcome to NN_Profiles's documentation!
-=======================================
+Welcome to the Atmospheric Transformer Docs!
+============================================
+
+This documentation describes the structure and usage of an atmospheric radiative transfer Transformer pipeline.
+
+Contents:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Table of Contents
 
-
+   getting_started
+   code_structure
+   usage_guide
 
 Indices and tables
 ==================

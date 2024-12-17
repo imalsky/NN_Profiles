@@ -1,8 +1,11 @@
 # Exclude everything in the data folder
 data/
 
-# Exclude everything in the Inputs folder
-Inputs/
+# Exclude everything in the inputs folder
+inputs/
 
-# Exclude everything in the Figures folder
+# Exclude everything in the figures folder
 figures/
+
+# Exclude older code that I want to keep just in case
+old_code

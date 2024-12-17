@@ -11,20 +11,45 @@
 #SBATCH --mail-type=all     # Send email at begin and end of job
 #SBATCH --mail-user=isaac.n.malsky@jpl.nasa.gov
 
-# Change to work directory
-# NOTE: /scratch points to the scratch filesystem local
-#       to the side of the cluster the job is running on.
+# Change to the directory from which the script was submitted
+cd "$SLURM_SUBMIT_DIR"
 
 # Dynamically locate Conda initialization script
 CONDA_EXE=$(command -v conda)
+if [ -z "$CONDA_EXE" ]; then
+    echo "Error: Conda executable not found. Exiting."
+    exit 1
+fi
+
 CONDA_BASE=$(dirname $(dirname $CONDA_EXE))
-source $CONDA_BASE/etc/profile.d/conda.sh
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 
 # Activate your Conda environment
-conda activate nn
+conda activate nn || { echo "Error: Failed to activate Conda environment 'nn'. Exiting."; exit 1; }
 
-# Load CUDA module if needed (ensure compatibility with your environment)
-module load cuda
+# Check if the 'module' command is available
+if command -v module &> /dev/null; then
+    # Initialize module system
+    source /usr/share/Modules/init/bash 2>/dev/null || \
+    source /etc/profile.d/modules.sh 2>/dev/null || \
+    echo "Warning: Modules system not initialized, but proceeding."
+
+    # Load CUDA module
+    module load cuda11.8 2>/dev/null || echo "Warning: Failed to load CUDA module. Proceeding with system defaults."
+else
+    echo "Warning: 'module' command not found. Proceeding with system defaults."
+fi
+
+# Check for CUDA compatibility
+if ! command -v nvidia-smi &> /dev/null; then
+    echo "Error: CUDA environment or GPU not detected. Exiting."
+    exit 1
+fi
+
+# Print GPU information
+nvidia-smi
 
 # Run your Python script
-python main.py
+python main.py || { echo "Error: Python script 'main.py' failed. Exiting."; exit 1; }
+
+echo "Job completed successfully."
